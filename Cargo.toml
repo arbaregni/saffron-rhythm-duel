@@ -1,0 +1,22 @@
+[package]
+name = "bevy-rhythm-tutorial"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy = { version = "0.13.1", features = ["dynamic_linking"]}
+env_logger = "0.11.3"
+log = "0.4.21"
+pretty_env_logger = "0.5.0"
+rand = "0.8.5"
+
+# Enable a small amount of optimization in debug mode
+[profile.dev]
+opt-level = 1
+
+# Enable high optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
+
