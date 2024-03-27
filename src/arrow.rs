@@ -1,10 +1,13 @@
 use bevy::prelude::*;
 
 use crate::lane::Lane;
-use crate::WORLD_HEIGHT;
 
-pub const ARROW_SIZE: Vec3 = Vec3::new(Lane::lane_width(), 20.0, 0.0);
-pub const ARROW_SPEED: f32 = -250.0;
+use crate::layout::BBox;
+
+fn world() -> BBox {
+    crate::world()
+}
+
 #[derive(Component,Debug,Copy,Clone)]
 pub struct Arrow {
     lane: Lane,
@@ -17,6 +20,12 @@ impl Arrow {
     }
     pub fn lane(self) -> Lane {
         self.lane
+    }
+    pub fn size() -> Vec3 {
+        Vec3::new(Lane::lane_width(), 20.0, 0.0)
+    }
+    pub fn speed(self) -> f32 {
+        -400.0
     }
 }
 
@@ -33,6 +42,7 @@ fn spawn_arrows(
     mut commands: Commands,
     time: Res<Time>,
     mut timer: ResMut<SpawnTimer>,
+    asset_server: Res<AssetServer>,
 ) {
     if !timer.0.tick(time.delta()).just_finished() {
         return;
@@ -40,7 +50,7 @@ fn spawn_arrows(
 
     let arrow = Arrow::new();
 
-    let pos = Vec3::new(arrow.lane.center_x(), WORLD_HEIGHT / 2.0, 0.0);
+    let pos = Vec3::new(arrow.lane.center_x(), world().top(), 0.0);
 
     commands
         .spawn((
@@ -48,7 +58,7 @@ fn spawn_arrows(
             SpriteBundle {
                 transform: Transform {
                     translation: pos,
-                    scale: ARROW_SIZE,
+                    scale: Arrow::size(),
                     ..default()
                 },
                 sprite: Sprite {
@@ -61,8 +71,8 @@ fn spawn_arrows(
 }
 
 fn move_arrows(time: Res<Time>, mut query: Query<(&mut Transform, &Arrow)>) {
-    for (mut transform, _arrow) in query.iter_mut() {
-        transform.translation.y += time.delta_seconds() * ARROW_SPEED;
+    for (mut transform, arrow) in query.iter_mut() {
+        transform.translation.y += time.delta_seconds() * arrow.speed();
     }
 }
 
@@ -79,5 +89,5 @@ impl Plugin for ArrowsPlugin {
 
 fn setup(mut commands: Commands, _materials: ResMut<Assets<ColorMaterial>>, _asset_server: Res<AssetServer>) {
     commands
-        .insert_resource(SpawnTimer::new(0.6))
+        .insert_resource(SpawnTimer::new(0.5))
 }

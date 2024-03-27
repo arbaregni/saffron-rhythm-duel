@@ -3,14 +3,21 @@ mod lane;
 mod targets;
 mod ui;
 mod shaders;
+mod layout;
 
 use bevy::{
     prelude::*,
     window::WindowTheme,
 };
 
+use layout::BBox;
+
 pub const WORLD_WIDTH: f32 = 400.0;
 pub const WORLD_HEIGHT: f32 = 600.0;
+
+pub fn world() -> BBox {
+    BBox::from_size(800.0, 600.0)
+}
 
 fn main() {
     pretty_env_logger::formatted_timed_builder()
@@ -24,7 +31,7 @@ fn main() {
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Bevy Rhythm Tutorial".to_string(),
-                resolution: (WORLD_WIDTH, WORLD_HEIGHT).into(),
+                resolution: (world().width(), world().height()).into(),
                 window_theme: Some(WindowTheme::Dark),
                 ..default()
             }),
@@ -39,13 +46,19 @@ fn main() {
         .run()
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let mut cam = Camera2dBundle::default();
     cam.projection.scaling_mode = bevy::render::camera::ScalingMode::Fixed {
-        width: WORLD_WIDTH,
-        height: WORLD_HEIGHT, 
+        width: world().width(),
+        height: world().height(), 
     };
     commands.spawn(cam);
+
+    commands.spawn(AudioBundle {
+        source: asset_server.load("sounds/Windless Slopes.ogg"),
+        ..default()
+    });
+
 }
 
 
