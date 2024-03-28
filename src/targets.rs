@@ -101,28 +101,6 @@ enum TargetState {
     Occupied(Arrow),
 }
 
-
-
-fn arrow_hit_listener(
-    _commands: Commands,
-    mut query: Query<(&mut Sprite, &LaneTarget)>,
-    mut status: ResMut<LaneTargetStates>,
-    mut arrow_hits: EventReader<ArrowHitEvent>
-) {
-    use TargetState::*;
-    // update the lane target appropriately
-    for _ in arrow_hits.read() {
-        for (mut sprite, lane_target) in query.iter_mut() {
-            let color = match status.targets[lane_target.lane()] {
-                Occupied(_) => lane_target.lane().colors().heavy,
-                Absent => lane_target.lane().colors().light,
-            };
-            sprite.color = color;
-        }
-    }
-}
-
-
 #[derive(Resource)]
 struct SongMetrics {
     /// Total number of arrows that have passed the target line.
@@ -163,6 +141,8 @@ fn despawn_arrows(
     mut lane_target_states: ResMut<LaneTargetStates>,
 ) {
 
+    let now = time.elapsed().as_secs_f32();
+
     let mut play_sound = false;
 
     for (entity, transform, arrow) in query.iter() {
@@ -175,7 +155,7 @@ fn despawn_arrows(
             arrow_hit_events.send(ArrowHitEvent {
                 lane: arrow.lane(),
                 arrow: arrow.clone(),
-                time: time.elapsed().as_secs_f32(),
+                time: now, 
                 kind: ArrowHitKind::Enter,
             });
 
@@ -186,7 +166,7 @@ fn despawn_arrows(
                 song_metrics.record_success();
                 correct_arrow_events.send(CorrectArrowEvent {
                     lane: arrow.lane(),
-                    time: time.elapsed().as_secs_f32(),
+                    time: now
                 });
 
                 commands.entity(entity).despawn();
@@ -205,6 +185,7 @@ fn despawn_arrows(
                 kind: ArrowHitKind::Exit,
             });
         }
+
         if pos < world().bottom() {
             log::info!("failed");
             song_metrics.record_failure();
@@ -545,7 +526,6 @@ impl Plugin for TargetsPlugin {
             .add_systems(Update, create_lane_box_on_press)
             .add_systems(Update, target_sparkle_on_correct_hit)
             .add_systems(Update, despawn_arrows)
-            .add_systems(Update, arrow_hit_listener)
             .add_systems(Update, update_feedback_text);
     }
 }
