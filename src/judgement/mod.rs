@@ -1,5 +1,5 @@
 mod lane_box;
-mod feedback;
+mod combo_meter;
 
 use bevy::prelude::*;
 use bevy::{
@@ -319,7 +319,7 @@ impl Plugin for TargetsPlugin {
             .add_systems(Update, target_sparkle_on_correct_hit)
             .add_systems(Update, despawn_arrows)
             .add_plugins(lane_box::LaneBoxPlugin)
-            .add_plugins(feedback::FeedbackPlugin)
+            .add_plugins(combo_meter::ComboMeterPlugin)
         ;
     }
 }

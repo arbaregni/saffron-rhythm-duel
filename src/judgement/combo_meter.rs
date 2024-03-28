@@ -123,8 +123,8 @@ fn update_feedback_text(
     text.sections[0].style.color.set_a(alpha);
 }
 
-pub struct FeedbackPlugin;
-impl Plugin for FeedbackPlugin {
+pub struct ComboMeterPlugin;
+impl Plugin for ComboMeterPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Startup, setup_feedback_text)
