@@ -1,10 +1,3 @@
-use bevy::{
-    prelude::*,
-    render::render_resource::{
-        PipelineDescriptor, RenderPipelineDescriptor
-    }
-};
-use super::*;
 /*
 #[derive(Component)]
 pub struct Background;
