@@ -67,19 +67,25 @@ fn setup_targets(mut commands: Commands) {
             lane
         };
 
+        let pos = Vec3::new(lane.center_x(), target_line_y(), 0.0);
+        let transform = Transform {
+            translation: pos,
+            scale: Arrow::size(),
+            ..default()
+        };
+
+        let color = lane.colors().light;
+        let sprite = Sprite {
+            color,
+            ..default()
+        };
+
         commands
             .spawn((
                 lane_target,
                 SpriteBundle {
-                    transform: Transform {
-                        translation: Vec3::new(lane.center_x(), target_line_y(), 0.0),
-                        scale: Arrow::size(),
-                        ..default()
-                    },
-                    sprite: Sprite {
-                        color: lane.colors().light,
-                        ..default()
-                    },
+                    transform,
+                    sprite,
                     ..default()
                 }
             ));
