@@ -1,5 +1,6 @@
 mod lane_box;
 mod combo_meter;
+mod target_sparkles;
 
 use bevy::prelude::*;
 use bevy::{
@@ -216,110 +217,20 @@ fn despawn_arrows(
     }
 }
 
-
-#[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
-struct SparkleMaterial {
-    #[uniform(0)]
-    color: Color,
-    #[texture(1)]
-    #[sampler(2)]
-    color_texture: Option<Handle<Image>>,
-}
-impl Material2d for SparkleMaterial {
-    fn fragment_shader() -> ShaderRef {
-        "shaders/target_sparkle_material_2d.wgsl".into()
-    }
-}
-
-#[derive(Component)]
-struct TargetSparkle {
-    created_at: f32,
-}
-const TARGET_SPARKLE_MAX_TIME: f32 = 0.3;
-
-fn target_sparkle_on_correct_hit(
-    mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<SparkleMaterial>>,
-    time: Res<Time>,
-    mut correct_events: EventReader<CorrectArrowEvent>,
-    mut query: Query<(Entity, &mut Transform, &TargetSparkle)>,
-) {
-    let now = time.elapsed().as_secs_f32();
-
-    let initial_radius = 10.0;
-
-    for event in correct_events.read() {
-
-        log::info!("correct event, spawning a little funny guy");
-
-        let sparkle = TargetSparkle {
-            created_at: now,
-        };
-
-        let color = event.lane.colors().base;
-        let material = materials.add(SparkleMaterial {
-            color,
-            color_texture: None // Some(asset_server.load("icon.png"))
-        });
-
-
-        let mesh = Mesh2dHandle(meshes.add(Circle {
-            radius: 1.0
-        }));
-        let scale = Vec3::splat(initial_radius);
-
-        let position = Vec3::new(event.lane.center_x(), target_line_y(), 0.0);
-
-
-        commands.spawn((sparkle,
-            MaterialMesh2dBundle {
-                mesh,
-                transform: Transform {
-                    translation: position,
-                    scale,
-                    ..default()
-                },
-                material,
-                ..default()
-            }));
-
-    }
-
-    let final_radius = 100.0;
-
-    for (entity, mut transform, target_sparkle) in query.iter_mut() {
-
-        let t = (now - target_sparkle.created_at) / TARGET_SPARKLE_MAX_TIME;
-
-        if t >= 1.0 {
-            commands.entity(entity).despawn();
-        }
-
-        // expand the radius over time
-        // [0,1] -> [initial_radius, final_radius]
-        let radius = t * (final_radius - initial_radius) + initial_radius;
-
-        transform.scale = Vec3::splat(radius);
-
-    }
-}
-
 pub struct TargetsPlugin;
 impl Plugin for TargetsPlugin {
     fn build(&self, app: &mut App) {
         log::info!("building Targets plugin...");
         app
-            .add_plugins(Material2dPlugin::<SparkleMaterial>::default())
             .insert_resource(SongMetrics::new())
             .insert_resource(LaneTargetStates::new())
             .add_event::<CorrectArrowEvent>()
             .add_event::<ArrowHitEvent>()
             .add_systems(Startup, setup_targets)
-            .add_systems(Update, target_sparkle_on_correct_hit)
             .add_systems(Update, despawn_arrows)
             .add_plugins(lane_box::LaneBoxPlugin)
             .add_plugins(combo_meter::ComboMeterPlugin)
+            .add_plugins(target_sparkles::TargetSparklesPlugin)
         ;
     }
 }
