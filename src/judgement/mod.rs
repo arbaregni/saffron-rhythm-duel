@@ -3,20 +3,6 @@ mod combo_meter;
 mod target_sparkles;
 
 use bevy::prelude::*;
-use bevy::{
-    reflect::TypePath,
-    render::{
-        render_resource::{
-            AsBindGroup, ShaderRef
-        },
-    },
-    sprite::{
-        Material2d,
-        Material2dPlugin,
-        MaterialMesh2dBundle,
-        Mesh2dHandle
-    },
-};
 
 use crate::lane::{
     Lane,
