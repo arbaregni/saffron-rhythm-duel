@@ -8,7 +8,10 @@ use crate::lane::{
     Lane,
     LaneMap
 };
-use crate::arrow::{ Arrow };
+use crate::arrow::{
+    Arrow,
+    ArrowStatus
+};
 use crate::layout::BBox;
 
 fn world() -> BBox {
@@ -128,7 +131,7 @@ impl SongMetrics {
 fn despawn_arrows(
     mut commands: Commands,
     time: Res<Time>,
-    query: Query<(Entity, &Transform, &Arrow)>,
+    mut query: Query<(Entity, &Transform, &mut Arrow)>,
     input: Res<ButtonInput<KeyCode>>,
     asset_server: Res<AssetServer>,
     mut song_metrics: ResMut<SongMetrics>,
@@ -141,19 +144,28 @@ fn despawn_arrows(
 
     let mut play_sound = false;
 
-    for (entity, transform, arrow) in query.iter() {
+    for (entity, transform, mut arrow) in query.iter_mut() {
         let pos = transform.translation.y;
 
         if pos < target_line_y() + KEYPRESS_TOLERANCE {
 
-            lane_target_states.targets[arrow.lane()] = TargetState::Occupied(arrow.clone());
+            if matches!(arrow.status(), ArrowStatus::BeforeTarget) {
+                // then we need to perform the one time update
 
-            arrow_hit_events.send(ArrowHitEvent {
-                lane: arrow.lane(),
-                arrow: arrow.clone(),
-                time: now, 
-                kind: ArrowHitKind::Enter,
-            });
+                log::info!("arrow entered the targeting zone");
+
+                lane_target_states.targets[arrow.lane()] = TargetState::Occupied(arrow.clone());
+
+                arrow_hit_events.send(ArrowHitEvent {
+                    lane: arrow.lane(),
+                    arrow: arrow.clone(),
+                    time: now, 
+                    kind: ArrowHitKind::Enter,
+                });
+
+                arrow.set_status(ArrowStatus::InTarget);
+            }
+
 
             let key = arrow.lane().keycode();
             if input.just_pressed(key) { 
@@ -172,22 +184,25 @@ fn despawn_arrows(
         }
 
         if pos < target_line_y() - KEYPRESS_TOLERANCE {
-            log::info!("arrow exitted a hit");
-            lane_target_states.targets[arrow.lane()] = TargetState::Absent;
-            arrow_hit_events.send(ArrowHitEvent {
-                lane: arrow.lane(),
-                arrow: arrow.clone(),
-                time: time.elapsed().as_secs_f32(),
-                kind: ArrowHitKind::Exit,
-            });
+
+            if matches!(arrow.status(), ArrowStatus::InTarget) {
+                log::info!("arrow exitted a hit");
+                lane_target_states.targets[arrow.lane()] = TargetState::Absent;
+                arrow_hit_events.send(ArrowHitEvent {
+                    lane: arrow.lane(),
+                    arrow: arrow.clone(),
+                    time: time.elapsed().as_secs_f32(),
+                    kind: ArrowHitKind::Exit,
+                });
+                song_metrics.record_failure();
+                play_sound = true;
+
+                arrow.set_status(ArrowStatus::AfterTarget);
+                // too late
+            }
+
         }
 
-        if pos < world().bottom() {
-            log::info!("failed");
-            song_metrics.record_failure();
-            play_sound = true;
-            commands.entity(entity).despawn();
-        }
     }
 
     // also play a fun little sound every time something happens
