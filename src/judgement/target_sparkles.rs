@@ -98,8 +98,6 @@ fn update_target_sparkles(
 ) {
     let now = time.elapsed().as_secs_f32();
 
-    let final_radius = 100.0;
-
     for (entity, mut transform, target_sparkle) in query.iter_mut() {
 
         let t = (now - target_sparkle.created_at) / TARGET_SPARKLE_MAX_TIME;
@@ -110,7 +108,7 @@ fn update_target_sparkles(
 
         // expand the radius over time
         // [0,1] -> [initial_radius, final_radius]
-        let radius = t * (final_radius - TARGET_SPARKLE_INITIAL_RADIUS) + TARGET_SPARKLE_INITIAL_RADIUS;
+        let radius = t * (TARGET_SPARKLE_FINAL_RADIUS - TARGET_SPARKLE_INITIAL_RADIUS) + TARGET_SPARKLE_INITIAL_RADIUS;
 
         transform.scale = Vec3::splat(radius);
 
