@@ -1,6 +1,6 @@
 mod arrow;
 mod lane;
-mod targets;
+mod judgement;
 mod ui;
 mod shaders;
 mod layout;
@@ -40,7 +40,7 @@ fn main() {
         .add_plugins(MaterialPlugin::<shaders::CustomMaterial>::default())
         .insert_resource(ClearColor(Color::rgb(27.0 / 255.0, 32.0 / 255.0, 33.0 / 255.0))) // eerie black
         .add_plugins(arrow::ArrowsPlugin)
-        .add_plugins(targets::TargetsPlugin)
+        .add_plugins(judgement::TargetsPlugin)
         .add_plugins(ui::UiPlugin)
         .add_systems(Update, close_on_esc)
         .run()
