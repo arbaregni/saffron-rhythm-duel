@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.13.1", features = ["dynamic_linking", "shader_format_glsl"] }
+clap = { version = "4.5.4", features = ["derive"] }
 env_logger = "0.11.3"
 log = "0.4.21"
 pretty_env_logger = "0.5.0"

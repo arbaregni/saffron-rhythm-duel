@@ -5,6 +5,12 @@ mod ui;
 mod shaders;
 mod layout;
 
+use std::path::PathBuf;
+
+use clap::{
+    Parser,
+};
+
 use bevy::{
     prelude::*,
     window::WindowTheme,
@@ -19,10 +25,19 @@ pub fn world() -> BBox {
     BBox::from_size(800.0, 600.0)
 }
 
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[arg(short, long, value_name = "FILE")]
+    chart: Option<PathBuf>,
+}
+
 fn main() {
     pretty_env_logger::formatted_timed_builder()
         .filter_level(log::LevelFilter::Info)
         .build();
+
+    let cli = Cli::parse();
 
     log::info!("Initializing...");
 
