@@ -7,13 +7,13 @@ mod layout;
 
 use std::path::PathBuf;
 
-use clap::{
-    Parser,
-};
-
+use anyhow::Result;
 use bevy::{
     prelude::*,
     window::WindowTheme,
+};
+use clap::{
+    Parser,
 };
 
 use layout::BBox;
@@ -21,6 +21,7 @@ use layout::BBox;
 pub const WORLD_WIDTH: f32 = 400.0;
 pub const WORLD_HEIGHT: f32 = 600.0;
 
+pub const BACKGROUND_COLOR: Color = Color::rgb(27.0 / 255.0, 32.0 / 255.0, 33.0 / 255.0); // eerie black 
 pub fn world() -> BBox {
     BBox::from_size(800.0, 600.0)
 }
@@ -30,14 +31,22 @@ pub fn world() -> BBox {
 struct Cli {
     #[arg(short, long, value_name = "FILE")]
     chart: Option<PathBuf>,
+
+    #[arg(short, long)]
+    debug: bool,
 }
 
-fn main() {
+fn main() -> Result<()> {
+    let cli = Cli::parse();
+
     pretty_env_logger::formatted_timed_builder()
-        .filter_level(log::LevelFilter::Info)
+        .filter_level(if cli.debug {
+            log::LevelFilter::Debug
+        } else {
+            log::LevelFilter::Info
+        })
         .build();
 
-    let cli = Cli::parse();
 
     log::info!("Initializing...");
 
@@ -53,12 +62,13 @@ fn main() {
             ..default()
         }))
         .add_plugins(MaterialPlugin::<shaders::CustomMaterial>::default())
-        .insert_resource(ClearColor(Color::rgb(27.0 / 255.0, 32.0 / 255.0, 33.0 / 255.0))) // eerie black
-        .add_plugins(arrow::ArrowsPlugin)
+        .insert_resource(ClearColor(BACKGROUND_COLOR))
+        .add_plugins(arrow::ArrowsPlugin::new(&cli)?)
         .add_plugins(judgement::TargetsPlugin)
         .add_plugins(ui::UiPlugin)
         .add_systems(Update, close_on_esc)
-        .run()
+        .run();
+    Ok(())
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {

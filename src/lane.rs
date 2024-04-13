@@ -1,3 +1,8 @@
+use serde::{
+    Serialize,
+    Deserialize,
+};
+
 use bevy::{
     prelude::*,
 };
@@ -10,6 +15,7 @@ fn world() -> BBox {
 
 
 #[derive(Debug,Copy,Clone)]
+#[derive(Serialize,Deserialize)]
 #[repr(u8)]
 pub enum Lane {
     L1 = 0,
@@ -71,11 +77,19 @@ impl Lane {
 
     pub fn keycode(self) -> KeyCode {
         use Lane::*;
+        /*
         match self {
             L1 => KeyCode::KeyD,
             L2 => KeyCode::KeyF,
             R1 => KeyCode::KeyJ,
             R2 => KeyCode::KeyK,
+        }
+        */
+        match self {
+            L1 => KeyCode::KeyA,
+            L2 => KeyCode::KeyS,
+            R1 => KeyCode::KeyD,
+            R2 => KeyCode::KeyF,
         }
     }
 }

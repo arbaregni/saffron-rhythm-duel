@@ -1,0 +1,46 @@
+{
+    "chart_name": "test song",
+    "sound_file": "something.ogg",
+    "beat_duration_secs": 0.3,
+    "lead_time_secs": 1.5,
+    "beats": [
+        [
+            {
+                "lane": "L1"
+            }
+        ],
+        [
+            {
+                "lane": "L2"
+            }
+        ],
+        [
+            {
+                "lane": "R1"
+            }
+        ],
+        [
+            {
+                "lane": "R2"
+            }
+        ],
+        [
+            {
+                "lane": "L1"
+            },
+            {
+                "lane": "R2"
+            }
+        ],
+        [],
+        [],
+        [
+            {
+                "lane": "L2"
+            },
+            {
+                "lane": "R1"
+            }
+        ]
+    ]
+}
