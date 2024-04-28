@@ -50,6 +50,9 @@ impl Chart {
     pub fn lead_time_secs(&self) -> f32 {
         self.lead_time_secs
     }
+    pub fn num_beats(&self) -> u32 {
+        self.beats.len() as u32
+    }
 }
 
 impl Note {

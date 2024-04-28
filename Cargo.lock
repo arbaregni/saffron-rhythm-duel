@@ -380,21 +380,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy-rhythm-tutorial"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bevy",
- "clap",
- "env_logger 0.11.3",
- "log",
- "pretty_env_logger",
- "rand",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "bevy_a11y"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3185,6 +3170,21 @@ name = "ryu"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e86697c916019a8588c99b5fac3cead74ec0b4b819707a682fd4d23fa0ce1ba1"
+
+[[package]]
+name = "saffron-rhythm-duel"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bevy",
+ "clap",
+ "env_logger 0.11.3",
+ "log",
+ "pretty_env_logger",
+ "rand",
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "same-file"

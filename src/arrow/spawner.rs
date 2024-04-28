@@ -1,0 +1,73 @@
+use bevy::prelude::*;
+
+use crate::lane::Lane;
+
+use super::chart::Chart;
+
+#[derive(Component, Debug, Copy, Clone)]
+pub struct Arrow {
+    pub (in crate::arrow) lane: Lane,
+    pub (in crate::arrow) status: ArrowStatus,
+    /// When the arrow is created and first visibile to player
+    pub (in crate::arrow) creation_time: f32,
+    /// When the arrow arrives at the judgement line, i.e. the ideal time for the player to hit it
+    pub (in crate::arrow) arrival_time: f32, 
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum ArrowStatus {
+    /// Before it should be hit
+    BeforeTarget,
+    /// In the middle of the target
+    InTarget,
+    /// After it passes through the target
+    AfterTarget,
+}
+
+#[derive(Resource)]
+#[derive(Debug, Clone)]
+pub struct ArrowSpawner {
+    /// How we will spawn the arrows
+    pub (in crate::arrow) mode: SpawningMode,
+    /// Scratch space for spawning the arrows
+    pub (in crate::arrow) arrow_buf: Vec<Arrow>,
+}
+
+#[derive(Debug, Clone)]
+pub enum SpawningMode {
+    Chart(Chart),
+    Recording(Chart),
+    Random,
+}
+
+impl Arrow {
+    pub fn new(lane: Lane, creation_time: f32, arrival_time: f32) -> Arrow {
+        Arrow {
+            lane,
+            status: ArrowStatus::BeforeTarget,
+            creation_time,
+            arrival_time,
+        }
+    }
+    pub fn lane(self) -> Lane {
+        self.lane
+    }
+    pub fn size() -> Vec3 {
+        Vec3::new(Lane::lane_width(), 20.0, 0.0)
+    }
+    pub fn status(self) -> ArrowStatus {
+        self.status
+    }
+    pub fn set_status(&mut self, status: ArrowStatus) {
+        self.status = status;
+    }
+}
+
+
+impl ArrowSpawner {
+    pub fn mode(&self) -> &SpawningMode {
+        &self.mode
+    }
+}
+
+

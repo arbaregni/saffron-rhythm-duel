@@ -1,9 +1,12 @@
+#![allow(dead_code)]
+
 mod arrow;
 mod lane;
 mod judgement;
 mod ui;
 mod shaders;
 mod layout;
+mod record;
 
 use std::path::PathBuf;
 
@@ -27,17 +30,22 @@ pub fn world() -> BBox {
 }
 
 #[derive(Parser)]
+#[derive(Resource)]
+#[derive(Debug)]
 #[command(version, about, long_about = None)]
-struct Cli {
+struct CliArgs {
     #[arg(short, long, value_name = "FILE")]
     chart: Option<PathBuf>,
+
+    #[arg(short, long, value_enum, default_value_t)]
+    on_finish: arrow::FinishBehavior,
 
     #[arg(short, long)]
     debug: bool,
 }
 
 fn main() -> Result<()> {
-    let cli = Cli::parse();
+    let cli = CliArgs::parse();
 
     pretty_env_logger::formatted_timed_builder()
         .filter_level(if cli.debug {
@@ -51,6 +59,7 @@ fn main() -> Result<()> {
     log::info!("Initializing...");
 
     App::new()
+        .insert_resource(cli)
         .add_systems(Startup, setup)
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
@@ -63,7 +72,7 @@ fn main() -> Result<()> {
         }))
         .add_plugins(MaterialPlugin::<shaders::CustomMaterial>::default())
         .insert_resource(ClearColor(BACKGROUND_COLOR))
-        .add_plugins(arrow::ArrowsPlugin::new(&cli)?)
+        .add_plugins(arrow::ArrowsPlugin)
         .add_plugins(judgement::TargetsPlugin)
         .add_plugins(ui::UiPlugin)
         .add_systems(Update, close_on_esc)

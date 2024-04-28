@@ -1,112 +1,32 @@
 mod chart;
+mod spawner;
+mod timer;
 
 use anyhow::{Result, Context};
 use bevy::prelude::*;
-use serde_json;
 
+use crate::CliArgs;
 use crate::lane::Lane;
 use crate::layout::BBox;
 
-use chart::Chart;
+pub use chart::{
+    Chart
+};
+
+pub use spawner::{
+    ArrowSpawner,
+    SpawningMode,
+    Arrow,
+    ArrowStatus,
+};
+pub use timer::{
+    BeatTimer,
+    BeatTickEvent,
+    FinishBehavior,
+};
 
 fn world() -> BBox {
     crate::world()
-}
-
-#[derive(Component, Debug, Copy, Clone)]
-pub struct Arrow {
-    lane: Lane,
-    status: ArrowStatus,
-    /// When the arrow is created and first visibile to player
-    creation_time: f32,
-    /// When the arrow arrives at the judgement line, i.e. the ideal time for the player to hit it
-    arrival_time: f32, 
-}
-impl Arrow {
-    pub fn new(lane: Lane, creation_time: f32, arrival_time: f32) -> Arrow {
-        Arrow {
-            lane,
-            status: ArrowStatus::BeforeTarget,
-            creation_time,
-            arrival_time,
-        }
-    }
-    pub fn lane(self) -> Lane {
-        self.lane
-    }
-    pub fn size() -> Vec3 {
-        Vec3::new(Lane::lane_width(), 20.0, 0.0)
-    }
-    pub fn status(self) -> ArrowStatus {
-        self.status
-    }
-    pub fn set_status(&mut self, status: ArrowStatus) {
-        self.status = status;
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum ArrowStatus {
-    /// Before it should be hit
-    BeforeTarget,
-    /// In the middle of the target
-    InTarget,
-    /// After it passes through the target
-    AfterTarget,
-}
-
-#[derive(Resource)]
-#[derive(Debug, Clone)]
-struct ArrowSpawner {
-    mode: SpawningMode,
-    song_start: f32,
-    beat_timer: Timer,
-    beat_count: u32,
-}
-
-#[derive(Debug, Clone)]
-enum SpawningMode {
-    Chart(Chart),
-    Random,
-}
-
-impl ArrowSpawner {
-    fn try_from(cli: &crate::Cli) -> Result<ArrowSpawner> {
-        log::info!("Creating arrow spawner");
-        let mode = match cli.chart.as_ref() {
-            Some(path) => {
-                let friendly_name = path.to_string_lossy();
-                use std::fs;
-                // parse the chart
-                let text = fs::read_to_string(path)
-                    .with_context(|| format!("Failed to read chart from path: {friendly_name}"))?;
-
-                let chart: Chart = serde_json::from_str(text.as_str())
-                    .with_context(|| format!("File at {friendly_name} could not be parsed as a chart"))?;
-
-                log::info!("Parsed chart '{}' from {}", chart.chart_name(), friendly_name);
-
-                SpawningMode::Chart(chart)
-            }
-            None => {
-                log::info!("No chart specified, using random note generation");
-                SpawningMode::Random
-            }
-        };
-        let seconds_per_beat = match &mode {
-            SpawningMode::Chart(chart) => chart.beat_duration_secs(),
-            SpawningMode::Random => 0.3
-        };
-        let beat_timer = Timer::from_seconds(seconds_per_beat, TimerMode::Repeating);
-
-        let spawner = ArrowSpawner {
-            mode,
-            beat_timer,
-            song_start: 0.,
-            beat_count: 0,
-        };
-        Ok(spawner)
-    }
 }
 
 
@@ -114,42 +34,50 @@ fn spawn_arrows(
     mut commands: Commands,
     time: Res<Time>,
     mut spawner: ResMut<ArrowSpawner>,
+    mut beat_events: EventReader<BeatTickEvent>,
 ) {
     let now = time.elapsed().as_secs_f32();
 
-    if now < spawner.song_start {
-        // not time to start the song yet
-        return;
-    }
+    // ========================================
+    //    create the arrows
+    // ========================================
 
-    spawner.beat_timer.tick(time.delta());
-    if !spawner.beat_timer.just_finished() {
-        // not time for another arrow yet, just return
-        return;
-    }
-    let beat = spawner.beat_count;
-    spawner.beat_count += 1;
+    let ArrowSpawner { ref mode, ref mut arrow_buf, .. } = spawner.as_mut();
+    arrow_buf.clear();
 
-    let mut arrows = vec![]; // todo: store this in a buffer separately so we don't always allocate
+    beat_events.read()
+        .for_each(|ev| {
+            // TODO: make sure this doesn't try to spawn multiple rows at the same time
 
-    match &spawner.mode {
-        SpawningMode::Chart(chart) => {
-            let lead_time = chart.lead_time_secs();
-            for note in chart.get(beat) {
-                let lane = note.lane();
-                let arrow = Arrow::new(lane, now, now + lead_time);
-                arrows.push(arrow);
-            }
-        }
-        SpawningMode::Random => {
-            let lane = Lane::random();
-            let lead_time = 1.5; // seconds
-            let arrow = Arrow::new(lane, now, now + lead_time);
-            arrows.push(arrow);
-        }
-    };
+            let beat = ev.beat();
 
-    for arrow in arrows.into_iter() {
+            match mode {
+                SpawningMode::Chart(chart) => {
+                    let lead_time = chart.lead_time_secs();
+                    for note in chart.get(beat) {
+                        let lane = note.lane();
+                        let arrow = Arrow::new(lane, now, now + lead_time);
+                        arrow_buf.push(arrow);
+                    }
+                }
+                SpawningMode::Random => {
+                    let lane = Lane::random();
+                    let lead_time = 1.5; // seconds
+                    let arrow = Arrow::new(lane, now, now + lead_time);
+                    arrow_buf.push(arrow);
+                }
+
+                SpawningMode::Recording(_) => {
+                    // nothing to do
+                }
+            };
+        });
+
+    // =======================================
+    //   spawn the arrows
+    // =======================================
+
+    for arrow in spawner.arrow_buf.drain(..) {
         let pos = Vec3::new(arrow.lane.center_x(), world().top(), 0.0);
 
         commands
@@ -169,6 +97,31 @@ fn spawn_arrows(
                 }
             ));
     }
+
+    // =======================================
+    //   check for end conditions
+    // =======================================
+    /*
+    let is_ending = match &spawner.mode {
+        SpawningMode::Chart(chart) => {
+            spawner.beat_count >= chart.num_beats()
+        },
+        SpawningMode::Recording(_) => {
+            false
+        },
+        SpawningMode::Random => {
+            false
+        }
+    };
+
+    // check if we need to loop
+    
+    if is_ending && matches!(&spawner.on_finish, FinishBehavior::Repeat) {
+        spawner.beat_count = 0;
+    }
+    */
+               
+
 }
 
 fn move_arrows(time: Res<Time>, mut query: Query<(&mut Transform, &Arrow)>) {
@@ -193,25 +146,89 @@ fn despawn_arrows(
 
 }
 
-pub struct ArrowsPlugin {
-    spawner: ArrowSpawner
-}
-impl ArrowsPlugin {
-    pub fn new(cli: &crate::Cli) -> Result<ArrowsPlugin> {
-        let spawner = ArrowSpawner::try_from(cli)?;
-        Ok(ArrowsPlugin {
-            spawner
-        })
+fn setup(cli: Res<CliArgs>, mut commands: Commands) {
+    // set up the default, during the parsing of the cart we may overwrite this
+    let mut seconds_per_beat = 0.3; // seconds
+                                    
+
+    // =========================================================
+    //    ARROW SPAWNER
+    // =========================================================
+    {
+        log::info!("Creating arrow spawner");
+        let mode = match cli.chart.as_ref() {
+            Some(path) => {
+                use std::fs;
+
+                let friendly_name = path.to_string_lossy();
+                // parse the chart
+                let text = fs::read_to_string(path)
+                    .with_context(|| format!("Failed to read chart from path: {friendly_name}"))
+                    .unwrap();
+
+                let chart: Chart = serde_json::from_str(text.as_str())
+                    .with_context(|| format!("File at {friendly_name} could not be parsed as a chart"))
+                    .unwrap();
+
+                log::info!("Parsed chart '{}' from {}", chart.chart_name(), friendly_name);
+
+                SpawningMode::Chart(chart)
+            }
+            None => {
+                log::info!("No chart specified, using random note generation");
+                SpawningMode::Random
+            }
+        };
+
+        // must overwrite the seconds_per_beat config
+        match &mode {
+            SpawningMode::Chart(chart) | SpawningMode::Recording(chart) => {
+                seconds_per_beat = chart.beat_duration_secs()
+            }
+            _ => {
+                // nothing to do
+            }
+        }
+
+        commands.insert_resource(ArrowSpawner {
+            mode,
+            arrow_buf: Vec::with_capacity(4),
+        });
     }
+
+    // =========================================================
+    //    BEAT TIMER 
+    // =========================================================
+    {
+        log::info!("Creating beat timer");
+
+        let on_finish = cli.on_finish.clone();
+
+        let duration = std::time::Duration::from_secs_f32(seconds_per_beat);
+        let beat_timer = Timer::new(duration, TimerMode::Repeating);
+
+        commands.insert_resource(BeatTimer {
+            song_start: 3.0, // seconds
+            beat_count: 0,
+            beat_timer,
+            on_finish,
+        });
+    }
+
 }
 
+
+pub struct ArrowsPlugin;
 impl Plugin for ArrowsPlugin {
     fn build(&self, app: &mut App) {
         log::info!("building Arrow plugin...");
         app
-            //.add_systems(Startup, setup)
-            .insert_resource(self.spawner.clone()) // possibly slightly janky?
-            .add_systems(Update, spawn_arrows)
+            .add_event::<timer::BeatTickEvent>()
+            .add_systems(Startup, setup)
+            .add_systems(Update, timer::check_for_beat)
+            .add_systems(Update, spawn_arrows
+                .after(timer::check_for_beat) // since the spawn_arrows system needs to ingest the BeatTickEvent
+            )
             .add_systems(Update, move_arrows)
             .add_systems(Update, despawn_arrows)
         ;
