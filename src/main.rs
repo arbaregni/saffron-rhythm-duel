@@ -7,10 +7,11 @@ mod ui;
 mod shaders;
 mod layout;
 mod record;
+mod input;
 
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{Result, Context};
 use bevy::{
     prelude::*,
     window::WindowTheme,
@@ -18,6 +19,7 @@ use bevy::{
 use clap::{
     Parser,
 };
+use serde::Deserialize;
 
 use layout::BBox;
 
@@ -37,12 +39,33 @@ struct CliArgs {
     #[arg(short, long, value_name = "FILE")]
     chart: Option<PathBuf>,
 
+    #[arg(long, value_name = "FILE", default_value = "assets/config.toml")]
+    config: PathBuf,
+
     #[arg(short, long, value_enum, default_value_t)]
     on_finish: arrow::FinishBehavior,
 
     #[arg(short, long)]
     debug: bool,
 }
+
+
+#[derive(Debug)]
+#[derive(Resource)]
+#[derive(Deserialize)]
+struct Config {
+    keybindings: KeyBindings
+}
+#[derive(Debug)]
+#[derive(Deserialize)]
+#[allow(non_snake_case)]
+struct KeyBindings {
+    lane_hit_L1: String,
+    lane_hit_L2: String,
+    lane_hit_R1: String,
+    lane_hit_R2: String,
+}
+
 
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
@@ -56,10 +79,16 @@ fn main() -> Result<()> {
         .build();
 
 
+    log::info!("Reading config file...");
+    let config_str = std::fs::read_to_string(&cli.config)
+        .with_context(|| format!("Parsing config file"))?;
+    let config: Config = toml::from_str(config_str.as_ref())?;
+
     log::info!("Initializing...");
 
     App::new()
         .insert_resource(cli)
+        .insert_resource(config)
         .add_systems(Startup, setup)
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
@@ -75,6 +104,7 @@ fn main() -> Result<()> {
         .add_plugins(arrow::ArrowsPlugin)
         .add_plugins(judgement::TargetsPlugin)
         .add_plugins(ui::UiPlugin)
+        .add_plugins(input::InputPlugin)
         .add_systems(Update, close_on_esc)
         .run();
     Ok(())

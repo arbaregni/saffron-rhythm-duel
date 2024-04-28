@@ -2,7 +2,9 @@ mod chart;
 mod spawner;
 mod timer;
 
-use anyhow::{Result, Context};
+use anyhow::{
+    Context
+};
 use bevy::prelude::*;
 
 use crate::CliArgs;
