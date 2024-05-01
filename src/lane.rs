@@ -14,7 +14,7 @@ fn world() -> BBox {
 }
 
 
-#[derive(Debug,Copy,Clone)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq)]
 #[derive(Serialize,Deserialize)]
 #[repr(u8)]
 pub enum Lane {

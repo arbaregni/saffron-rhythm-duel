@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use super::{
     SongMetrics,
-    CorrectArrowEvent
+    CorrectHitEvent,
 };
 
 #[derive(Component)]
@@ -61,7 +61,7 @@ fn setup_feedback_text(
 fn update_feedback_text(
     time: Res<Time>,
     song_metrics: Res<SongMetrics>,
-    mut correct_events: EventReader<CorrectArrowEvent>,
+    mut correct_events: EventReader<CorrectHitEvent>,
     mut query: Query<(&mut Text, &mut FeedbackText)>,
 ) {
     let now = time.elapsed().as_secs_f32();

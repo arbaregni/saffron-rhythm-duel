@@ -15,6 +15,7 @@ use bevy::{
 };
 
 use crate::lane::Lane;
+use crate::input::InputActionEvent;
 
 use super::world;
 
@@ -43,7 +44,7 @@ const LANE_BOX_MAX_TIME: f32 = 0.4;
 
 fn create_lane_box_on_press(
     mut commands: Commands,
-    input: Res<ButtonInput<KeyCode>>,
+    mut input_events: EventReader<InputActionEvent>,
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<LaneBoxMaterial>>,
@@ -52,41 +53,40 @@ fn create_lane_box_on_press(
 
     let initial_alpha = 0.1;
 
-    for &lane in Lane::all() {
-        let key = lane.keycode();
-        if input.just_pressed(key) {
+    for ev in input_events.read() {
+        let InputActionEvent::LaneHit(lane) = ev else {
+            // nothing to do here
+            continue;
+        };
+        let pos = Vec3::new(lane.center_x(), 0.0, 0.0);
 
-            let pos = Vec3::new(lane.center_x(), 0.0, 0.0);
+        let color = lane.colors().light.with_a(initial_alpha);
 
-            let color = lane.colors().light.with_a(initial_alpha);
+        let rect = Rectangle::new(Lane::lane_width(), world().height());
+        let mesh = Mesh2dHandle(meshes.add(rect));
 
-            let rect = Rectangle::new(Lane::lane_width(), world().height());
-            let mesh = Mesh2dHandle(meshes.add(rect));
+        let created_at = now;
 
-            let created_at = now;
+        let material = materials.add(LaneBoxMaterial {
+            color,
+            created_at,
+            life_length: LANE_BOX_MAX_TIME,
+        });
 
-            let material = materials.add(LaneBoxMaterial {
-                color,
-                created_at,
-                life_length: LANE_BOX_MAX_TIME,
-            });
-
-            log::info!("key press detected, creating lane box...");
-            commands.spawn((
-                LaneBox {
-                    created_at: now,
-                },
-                MaterialMesh2dBundle {
-                    mesh,
-                    transform: Transform {
-                        translation: pos,
-                        ..default()
-                    },
-                    material,
+        log::info!("key press detected, creating lane box...");
+        commands.spawn((
+            LaneBox {
+                created_at: now,
+            },
+            MaterialMesh2dBundle {
+                mesh,
+                transform: Transform {
+                    translation: pos,
                     ..default()
-                }));
-
-          }
+                },
+                material,
+                ..default()
+            }));
     }
 }
 

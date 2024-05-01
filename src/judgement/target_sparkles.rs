@@ -15,7 +15,7 @@ use bevy::{
 };
 
 use super::{
-    CorrectArrowEvent,
+    CorrectHitEvent,
     target_line_y,
 };
 
@@ -47,7 +47,7 @@ fn create_target_sparkle_on_correct_hit(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<SparkleMaterial>>,
     time: Res<Time>,
-    mut correct_events: EventReader<CorrectArrowEvent>,
+    mut correct_events: EventReader<CorrectHitEvent>,
 ) {
     let now = time.elapsed().as_secs_f32();
 

@@ -1,3 +1,4 @@
+use bevy::prelude::*;
 use serde::{
     Deserialize,
     Serialize,
@@ -7,7 +8,9 @@ use crate::lane::Lane;
 
 #[derive(Serialize, Deserialize)]
 #[derive(Debug, Clone)]
+#[derive(Resource)]
 pub struct Chart {
+    /// The name of the chart
     chart_name: String,
 
     /// The song file name in assets/songs folder

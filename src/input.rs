@@ -278,7 +278,7 @@ impl Plugin for InputPlugin {
         app
             .add_event::<InputActionEvent>()
             .add_systems(Startup, setup_input_manager)
-            .add_systems(Update, listen_for_input)
+            .add_systems(PreUpdate, listen_for_input) // important that input happens the frame it's detected
         ;
     }
 }

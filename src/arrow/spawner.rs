@@ -16,12 +16,10 @@ pub struct Arrow {
 
 #[derive(Debug, Copy, Clone)]
 pub enum ArrowStatus {
-    /// Before it should be hit
-    BeforeTarget,
-    /// In the middle of the target
-    InTarget,
-    /// After it passes through the target
-    AfterTarget,
+    /// Has been generated, but not clicked
+    Pending,
+    /// Has been clicked
+    Completed,
 }
 
 #[derive(Resource)]
@@ -44,7 +42,7 @@ impl Arrow {
     pub fn new(lane: Lane, creation_time: f32, arrival_time: f32) -> Arrow {
         Arrow {
             lane,
-            status: ArrowStatus::BeforeTarget,
+            status: ArrowStatus::Pending,
             creation_time,
             arrival_time,
         }
@@ -58,8 +56,8 @@ impl Arrow {
     pub fn status(self) -> ArrowStatus {
         self.status
     }
-    pub fn set_status(&mut self, status: ArrowStatus) {
-        self.status = status;
+    pub fn mark_completed(&mut self) {
+        self.status = ArrowStatus::Completed;
     }
 }
 
