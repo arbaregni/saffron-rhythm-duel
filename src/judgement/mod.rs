@@ -10,7 +10,6 @@ use crate::lane::{
 };
 use crate::arrow::{
     Arrow,
-    ArrowStatus,
 };
 use crate::layout::BBox;
 use crate::input::InputActionEvent;

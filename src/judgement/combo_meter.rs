@@ -11,9 +11,17 @@ use super::{
 #[derive(Component)]
 pub struct FeedbackText {
     last_updated: f32,
+    initial_scale: f32,
+}
+impl FeedbackText {
+    pub fn new() -> Self {
+        Self {
+            last_updated: 0.0,
+            initial_scale: 1.0,
+        }
+    }
 }
 
-const FEEDBACK_TEXT_MAX_SHOW_TIME: f32 = 0.7; // seconds
 
 /// Setups the resources for the feedback text.
 fn setup_feedback_text(
@@ -50,9 +58,7 @@ fn setup_feedback_text(
         .with_children(|parent| {
             parent
                 .spawn((
-                    FeedbackText {
-                        last_updated: 0f32,
-                    },
+                    FeedbackText::new(),
                     TextBundle {
                         text,
                         ..default()
@@ -62,31 +68,19 @@ fn setup_feedback_text(
 
 }
 
-/// Sets the feedback text contents
-fn set_feedback_text_content(
-    content: &str,
-    time: Res<Time>,
-    mut query: Query<(&mut Text, &mut FeedbackText)>,
-) {
-    let now = time.elapsed().as_secs_f32();
-    let (mut text, mut feedback) = query.single_mut();
-
-    feedback.last_updated = now;
-    text.sections[0].value.clear();
-    text.sections[0].value.push_str(content);
-}
     
 /// Display a message to the user when they hit a note correctly.
 fn set_feedback_content_on_correct_hit(
     time: Res<Time>,
     song_metrics: Res<SongMetrics>,
-    mut correct_events: EventReader<CorrectHitEvent>,
     query: Query<(&mut Text, &mut FeedbackText)>,
+    mut correct_events: EventReader<CorrectHitEvent>,
 ) {
     // we just want to know if there have been correct events, we'll handle them all now
     let Some(_correct_hit) = correct_events.read().last() else {
         return; // nothing to do
     };
+
 
     // TODO: advanced feedback here
     //
@@ -117,11 +111,11 @@ fn set_feedback_content_on_correct_hit(
         n => {
             let n = n - 32;
             let content = &format!("SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-COMBO! x{n}");
-            set_feedback_text_content(content, time, query);
+            set_feedback_text_content(content, time, query, FeedbackStyle::Success);
             return;
         }
     };
-    set_feedback_text_content(content, time, query);
+    set_feedback_text_content(content, time, query, FeedbackStyle::Success);
 }
 
 
@@ -146,7 +140,7 @@ fn set_feedback_content_on_missfire(
         content = "Streak broken!";
     }
 
-    set_feedback_text_content(content, time, query);
+    set_feedback_text_content(content, time, query, FeedbackStyle::Failure);
 }
 
 /// Displays message to the user when they don't hit a note.
@@ -167,11 +161,51 @@ fn set_feedback_content_on_dropped_note(
     if song_metrics.just_broke_streak() {
         content = "Streak broken!";
     }
-    set_feedback_text_content(content, time, query);
+    set_feedback_text_content(content, time, query, FeedbackStyle::Failure);
 }
 
-const TEXT_SCALE_START: f32 = 1.5;
+
+enum FeedbackStyle {
+    Success, // for correct hit events
+    Failure, // for misses and drops
+}
+
+
+const TEXT_SCALE_FOR_SUCCESS: f32 = 1.2;
+const TEXT_SCALE_FOR_FAILURE: f32 = 1.5;
+
+const TEXT_COLOR_FOR_SUCCESS: Color = Color::rgb(1.0, 1.0, 1.0); // white
+const TEXT_COLOR_FOR_FAILURE: Color = Color::rgb(171.0 / 256.0, 32.0 / 256.0, 46.0 / 256.0); // red
+
+/// Sets the feedback text contents
+fn set_feedback_text_content(
+    content: &str,
+    time: Res<Time>,
+    mut query: Query<(&mut Text, &mut FeedbackText)>,
+    style: FeedbackStyle,
+) {
+    let now = time.elapsed().as_secs_f32();
+
+    let (mut text, mut feedback) = query.single_mut();
+
+    feedback.last_updated = now;
+    text.sections[0].value.clear();
+    text.sections[0].value.push_str(content);
+
+    match style {
+        FeedbackStyle::Success => {
+            feedback.initial_scale = TEXT_SCALE_FOR_SUCCESS;
+            text.sections[0].style.color = TEXT_COLOR_FOR_SUCCESS;
+        }
+        FeedbackStyle::Failure => {
+            feedback.initial_scale = TEXT_SCALE_FOR_FAILURE;
+            text.sections[0].style.color = TEXT_COLOR_FOR_FAILURE;
+        }
+    }
+}
+
 const TEXT_SCALE_END: f32 = 1.0;
+const FEEDBACK_TEXT_MAX_SHOW_TIME: f32 = 0.25; // seconds
 
 /// Animates out the feedback text over time.
 fn update_feedback_text(
@@ -190,7 +224,7 @@ fn update_feedback_text(
     let alpha = 1.0 - t;
     text.sections[0].style.color.set_a(alpha);
 
-    let scale_factor = TEXT_SCALE_START * (1.0 - t) + TEXT_SCALE_END * t;
+    let scale_factor = feedback.initial_scale * (1.0 - t) + TEXT_SCALE_END * t;
     transform.scale = Vec3::splat(scale_factor);
 }
 
