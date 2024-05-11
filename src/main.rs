@@ -21,6 +21,7 @@ use clap::{
 use serde::Deserialize;
 
 use layout::BBox;
+use lane::Lane;
 
 pub const WORLD_WIDTH: f32 = 400.0;
 pub const WORLD_HEIGHT: f32 = 600.0;
@@ -67,7 +68,18 @@ struct KeyBindings {
     lane_hit_R1: String,
     lane_hit_R2: String,
 }
+impl KeyBindings {
+    fn key_name(&self, lane: Lane) -> &str {
+        match lane {
+            Lane::L1 => self.lane_hit_L1.as_str(),
+            Lane::L2 => self.lane_hit_L2.as_str(),
+            Lane::R1 => self.lane_hit_R1.as_str(),
+            Lane::R2 => self.lane_hit_R2.as_str(),
+        }
+    }
+}
 
+const BASE_FONT_NAME: &str = "fonts/FiraSans-Bold.ttf";
 
 fn main() -> Result<()> {
     let cli = CliArgs::parse();

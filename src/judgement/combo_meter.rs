@@ -26,9 +26,9 @@ impl FeedbackText {
 /// Setups the resources for the feedback text.
 fn setup_feedback_text(
     mut commands: Commands,
-    asset_server: ResMut<AssetServer>,
+    asset_server: Res<AssetServer>,
 ) {
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
+    let font = asset_server.load(crate::BASE_FONT_NAME);
     let font_size = 100.0;
     let color = Color::rgb(0.9, 0.9, 0.9);
 
@@ -174,7 +174,7 @@ enum FeedbackStyle {
 const TEXT_SCALE_FOR_SUCCESS: f32 = 1.2;
 const TEXT_SCALE_FOR_FAILURE: f32 = 1.5;
 
-const TEXT_COLOR_FOR_SUCCESS: Color = Color::rgb(1.0, 1.0, 1.0); // white
+const TEXT_COLOR_FOR_SUCCESS: Color = Color::rgb(0.9, 0.9, 0.9); // off-white
 const TEXT_COLOR_FOR_FAILURE: Color = Color::rgb(171.0 / 256.0, 32.0 / 256.0, 46.0 / 256.0); // red
 
 /// Sets the feedback text contents

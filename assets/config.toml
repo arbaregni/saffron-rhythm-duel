@@ -1,5 +1,5 @@
 [keybindings]
-lane_hit_L1 = 'd'
-lane_hit_L2 = 'f'
-lane_hit_R1 = 'j'
-lane_hit_R2 = 'k'
+lane_hit_L1 = 'a'
+lane_hit_L2 = 's'
+lane_hit_R1 = 'd'
+lane_hit_R2 = 'f'

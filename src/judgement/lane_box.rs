@@ -89,7 +89,7 @@ fn create_lane_box_on_press(
 }
 
 
-fn despawn_lane_boxes(
+fn animate_lane_boxes(
     mut commands: Commands,
     time: Res<Time>,
     query: Query<(Entity, &LaneBox)>,
@@ -116,7 +116,7 @@ impl Plugin for LaneBoxPlugin {
         app
             .add_plugins(Material2dPlugin::<LaneBoxMaterial>::default())
             .add_systems(Update, create_lane_box_on_press)
-            .add_systems(Update, despawn_lane_boxes)
+            .add_systems(Update, animate_lane_boxes)
         ;
     }
 }

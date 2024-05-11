@@ -9,7 +9,10 @@ use bevy::prelude::*;
 
 use crate::CliArgs;
 use crate::lane::Lane;
-use crate::layout::BBox;
+use crate::layout::{
+    BBox,
+    Layer
+};
 
 pub use chart::{
     Chart
@@ -19,7 +22,6 @@ pub use spawner::{
     ArrowSpawner,
     SpawningMode,
     Arrow,
-    ArrowStatus,
 };
 pub use timer::{
     BeatTimer,
@@ -151,7 +153,9 @@ fn spawn_arrows(
     // =======================================
 
     for arrow in spawner.arrow_buf.drain(..) {
-        let pos = Vec3::new(arrow.lane.center_x(), world().top(), 0.0);
+
+        let z = Layer::Arrows.z();
+        let pos = Vec3::new(arrow.lane.center_x(), world().top(), z);
 
         commands
             .spawn((
