@@ -170,14 +170,16 @@ fn set_feedback_content_on_dropped_note(
     set_feedback_text_content(content, time, query);
 }
 
+const TEXT_SCALE_START: f32 = 1.5;
+const TEXT_SCALE_END: f32 = 1.0;
 
-/// Fades out the feedback text over time.
+/// Animates out the feedback text over time.
 fn update_feedback_text(
     time: Res<Time>,
-    mut query: Query<(&mut Text, &mut FeedbackText)>
+    mut query: Query<(&mut Text, &mut FeedbackText, &mut Transform)>
 ) {
     let now = time.elapsed().as_secs_f32();
-    let (mut text, feedback) = query.single_mut();
+    let (mut text, feedback, mut transform) = query.single_mut();
 
     let t = (now - feedback.last_updated) / FEEDBACK_TEXT_MAX_SHOW_TIME;
 
@@ -187,6 +189,9 @@ fn update_feedback_text(
     }
     let alpha = 1.0 - t;
     text.sections[0].style.color.set_a(alpha);
+
+    let scale_factor = TEXT_SCALE_START * (1.0 - t) + TEXT_SCALE_END * t;
+    transform.scale = Vec3::splat(scale_factor);
 }
 
 
