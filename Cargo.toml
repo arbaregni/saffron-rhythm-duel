@@ -11,6 +11,7 @@ bevy = { version = "0.13.1", features = ["dynamic_linking", "shader_format_glsl"
 clap = { version = "4.5.4", features = ["derive"] }
 env_logger = "0.11.3"
 log = "0.4.21"
+ordered-float = "4.2.0"
 pretty_env_logger = "0.5.0"
 rand = "0.8.5"
 serde = "1.0.197"

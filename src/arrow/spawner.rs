@@ -69,6 +69,12 @@ impl Arrow {
     pub fn mark_completed(&mut self) {
         self.status = ArrowStatus::Completed;
     }
+    pub fn creation_time(self) -> f32 {
+        self.creation_time
+    }
+    pub fn arrival_time(self) -> f32 {
+        self.arrival_time
+    }
 }
 
 

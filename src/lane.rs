@@ -49,21 +49,25 @@ impl Lane {
                 base: Color::hex("#ff9b71").unwrap(), // Tangerine
                 light: Color::rgb_u8(255, 212, 194),
                 heavy: Color::rgb_u8(204, 61, 0),
+                greyed: Color::rgb_u8(120, 93, 81),
             },
             L2 => ColorConfig {
                 base: Color::hex("#a1c084").unwrap(), // Olivine    
                 light: Color::rgb_u8(203, 220, 188),
                 heavy: Color::rgb_u8(81, 108, 55),
+                greyed: Color::rgb_u8(97, 112, 82),
             },
             R1 => ColorConfig {
                 base: Color::rgb_u8(153, 153, 255), // Tropical indigo
                 light: Color::rgb_u8(204, 204, 255), // periwinkle
                 heavy: Color::rgb_u8(71, 71, 255),
+                greyed: Color::rgb_u8(109, 109, 158),
             },
             R2 => ColorConfig {
                 base: Color::hex("#094d92").unwrap(), // Polynesian blue    
                 light: Color::rgb_u8(140, 194, 248),
                 heavy: Color::rgb_u8(4, 41, 78),
+                greyed: Color::rgb_u8(48, 82, 117),
             },
         }
     }
@@ -99,6 +103,7 @@ pub struct ColorConfig {
     pub light: Color,
     pub base: Color,
     pub heavy: Color,
+    pub greyed: Color,
 }
 
 #[derive(Debug, Clone)]

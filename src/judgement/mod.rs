@@ -9,6 +9,7 @@ use bevy::prelude::*;
 use crate::{
     Config
 };
+
 use crate::lane::{
     Lane,
 };
@@ -34,12 +35,12 @@ fn target_height() -> f32 {
 fn target_line_y() -> f32 {
     world().bottom() + 0.5 * target_height()
 }
-fn lane_text_y() -> f32 {
-    target_line_y() + 20.0 // 
+fn arrow_drop_line_y() -> f32 {
+    // once the arrow is no longer visible, it's too late for the player to click it
+    world().bottom() - target_height() * 1.5
 }
 
-
-pub const KEYPRESS_TOLERANCE: f32 = 80.0;
+pub const KEYPRESS_TOLERANCE_SECS: f32 = 0.5; // in seconds
 
 #[derive(Component)]
 struct LaneTarget {
@@ -176,7 +177,7 @@ fn setup_targets(
 fn judge_lane_hits(
     time: Res<Time>,
     mut input_events: EventReader<InputActionEvent>,
-    mut query: Query<(&Transform, &mut Arrow)>,
+    mut query: Query<(&mut Arrow, &mut Sprite)>,
     mut correct_arrow_events: EventWriter<CorrectHitEvent>,
     mut missfire_events: EventWriter<MissfireEvent>,
 ) {
@@ -186,34 +187,36 @@ fn judge_lane_hits(
     for input_action in input_events.read() {
         let InputActionEvent::LaneHit(event_lane) = input_action; // only input action type for now
         // 
-        // Find the closest arrow to the target line
+        // Find the arrow with the closes arrival time 
         //
 
-        let mut search_result = None;
-        let mut smallest_dist = f32::INFINITY;
+        use ordered_float::NotNan;
+        let search_result = query
+            .iter_mut()
+            
+            // only consider arrows that have not been hit yet
+            .filter(|(arrow, _)| arrow.status().is_pending())
+            
+            // only consider arrows in the lane that was hit
+            .filter(|(arrow, _)| arrow.lane() == *event_lane)
 
-        for (transform, arrow) in query.iter_mut() {
-            let pos = transform.translation.y;
+            // Get the absolute arrival time of each
+            .map(|(arrow, sprite)| {
+                let delta_time = arrow.arrival_time() - now;
+                let time_diff = delta_time.abs();
+                (arrow, sprite, time_diff)
+            })
 
-            if !arrow.status().is_pending() {
-                // only consider arrows that have not been hit yet
-                continue;
-            }
-
-            if arrow.lane() != *event_lane {
-                // do not consider this arrow, it is not in the right lane
-                continue;
-            }
-
-            let dist = (target_line_y() - pos).abs();
-
-            // progressively choose the closest arrow
-            if dist < smallest_dist {
-                search_result = Some((transform, arrow));
-                smallest_dist = dist;
-            }
-        }
-
+            // Discard the NaNs, everything else can be compared
+            .filter_map(|(arrow, sprite, time_diff)| match NotNan::new(time_diff) {
+                Ok(time_diff) => Some((arrow, sprite, time_diff)),
+                Err(e) => {
+                    log::error!("Found NaN while calculating the time to arrival of {arrow:?} - {e:?}");
+                    None // discard this arrow
+                }
+            })
+            // Find the minimum
+            .min_by_key(|(_, _, diff)| *diff);
 
         // found a result, we need to send the appropriate event
         match search_result {
@@ -221,7 +224,7 @@ fn judge_lane_hits(
                 // there was a misclick here since the user 
                 // pressed down when they should not have
 
-                log::info!("sending missfire event");
+                log::info!("no arrow found in lane - sending missfire event");
                 missfire_events.send(MissfireEvent {
                     lane: *event_lane,
                     time_of_hit: now,
@@ -229,29 +232,32 @@ fn judge_lane_hits(
                 });
 
             }
-            Some((transform, mut arrow)) => {
-                arrow.mark_completed();
+            Some((mut arrow, mut sprite, _)) => {
+                let delta_time = arrow.arrival_time() - now;
 
-                let delta_to_target = target_line_y() - transform.translation.y;
+                log::info!("arrow found - time to arrival was {delta_time:?}");
 
-                if delta_to_target.abs() >= KEYPRESS_TOLERANCE {
-
+                if delta_time.abs() >= KEYPRESS_TOLERANCE_SECS {
                     // too far away to consider this correct
-                    log::info!("sending missfire event");
+                    log::info!("arrow found but it was too far away - sending missfire event");
                     missfire_events.send(MissfireEvent {
                         lane:  *event_lane,
                         time_of_hit: now,
-                        opt_delta_to_target: Some(delta_to_target),
+                        opt_delta_to_target: Some(delta_time),
                     });
 
                 } else {
+                    arrow.mark_completed();
+
+                    // since it's been completed, move the color closer to grey
+                    sprite.color = arrow.lane().colors().greyed;
 
                     // send the correct hit event
                     log::info!("sending correct hit event");
                     correct_arrow_events.send(CorrectHitEvent {
                         lane: *event_lane,
                         time_of_hit: now,
-                        delta_to_target: (target_line_y() - transform.translation.y),
+                        delta_to_target: delta_time,
                     });
                 }
             }
@@ -271,7 +277,7 @@ fn despawn_arrows(
 ) {
     for (entity, transform, arrow) in query.iter() {
         let y = transform.translation.y;
-        if y < world().bottom() - KEYPRESS_TOLERANCE {
+        if y < arrow_drop_line_y() {
 
             // it's low enough to despawn
             commands.entity(entity).despawn();
