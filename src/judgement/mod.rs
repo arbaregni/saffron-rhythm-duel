@@ -67,6 +67,8 @@ pub struct CorrectHitEvent {
     pub time_of_hit: f32,
     /// The signed distance from the target line to the nearest note
     pub delta_to_target: f32,
+    /// The grade the judgment system gave
+    pub grade: Grade,
 }
 
 #[derive(Event)]
@@ -79,7 +81,7 @@ pub struct MissfireEvent {
     pub time_of_hit: f32,
     /// The signed distance from the target line to the nearest note,
     /// if we can identify one.
-    pub opt_delta_to_target: Option<f32>,
+    pub opt_hit: Option<(f32, Grade)>,
 }
 
 #[derive(Event)]
@@ -93,6 +95,44 @@ impl DroppedNoteEvent {
         &self.arrow
     }
 }
+
+pub const PERFECT_CUTOFF_SECS: f32 = 0.05;
+pub const FAIR_CUTOFF_SECS: f32 = 0.15;
+
+#[derive(Debug, Copy, Clone)]
+pub enum Grade {
+    Perfect,
+    Fair,
+    Late,
+    Early,
+}
+impl Grade {
+    fn from(arrival_time: f32, hit_time: f32) -> Grade {
+        let time_diff = (arrival_time - hit_time).abs();
+        if time_diff < PERFECT_CUTOFF_SECS {
+            Grade::Perfect
+        } else if time_diff < FAIR_CUTOFF_SECS {
+            Grade::Fair
+        } else {
+            if arrival_time < hit_time{
+                Grade::Early
+            } else {
+                Grade::Late
+            }
+        }
+    }
+    pub fn is_perfect(self) -> bool {
+        use Grade::*;
+        match self {
+            Perfect => true,
+            Fair => false,
+            Late => false,
+            Early => false,
+        }
+    }
+}
+
+
 
 // Draws the targets on the target line
 fn setup_targets(
@@ -228,7 +268,7 @@ fn judge_lane_hits(
                 missfire_events.send(MissfireEvent {
                     lane: *event_lane,
                     time_of_hit: now,
-                    opt_delta_to_target: None,
+                    opt_hit: None,
                 });
 
             }
@@ -243,7 +283,10 @@ fn judge_lane_hits(
                     missfire_events.send(MissfireEvent {
                         lane:  *event_lane,
                         time_of_hit: now,
-                        opt_delta_to_target: Some(delta_time),
+                        opt_hit: Some((
+                            delta_time,
+                            Grade::from(arrow.arrival_time(), now)
+                        )),
                     });
 
                 } else {
@@ -258,6 +301,7 @@ fn judge_lane_hits(
                         lane: *event_lane,
                         time_of_hit: now,
                         delta_to_target: delta_time,
+                        grade: Grade::from(arrow.arrival_time(), now),
                     });
                 }
             }

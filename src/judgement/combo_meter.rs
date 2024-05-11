@@ -5,6 +5,7 @@ use super::{
     CorrectHitEvent,
     DroppedNoteEvent,
     MissfireEvent,
+    Grade,
     SongMetrics,
 };
 
@@ -77,44 +78,64 @@ fn set_feedback_content_on_correct_hit(
     mut correct_events: EventReader<CorrectHitEvent>,
 ) {
     // we just want to know if there have been correct events, we'll handle them all now
-    let Some(_correct_hit) = correct_events.read().last() else {
+    let Some(correct_hit) = correct_events.read().last() else {
         return; // nothing to do
     };
 
 
-    // TODO: advanced feedback here
-    //
-    let content = match song_metrics.streak() {
-        0 => "",
-        1..=2 => "Good",
-        3 => "Nice",
-        4 => "Great!",
-        5 => "Amazing!",
-        6 => "Wonderful!",
-        7 => "Fantastic!!",
-        8..=19 => "Outstanding!!!",
-
-        20 => "SUPER-!",
-        21 => "SUPER-POWER-!",
-        22 => "SUPER-POWER-NINJA-!",
-        23 => "SUPER-POWER-NINJA-TURBO-!",
-        24 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-!",
-        25 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-!",
-        26 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-!",
-        27 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-!",
-        28 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-!",
-        29 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-!",
-        30 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-!",
-        31 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-!",
-        32 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-COMBO!",
-
-        n => {
-            let n = n - 32;
-            let content = &format!("SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-COMBO! x{n}");
-            set_feedback_text_content(content, time, query, FeedbackStyle::Success);
-            return;
+    let mut content = match &correct_hit.grade {
+        Grade::Perfect => {
+            use rand::seq::SliceRandom;
+            let mut rng = rand::thread_rng();
+            [
+                "Perfect!",
+                "Wonderful!",
+                "Fantastic!!",
+                "Outstanding!!!",
+            ]
+                .choose(&mut rng)
+                .copied()
+                .expect("at least one option")
+        }
+        Grade::Fair => {
+            "Fair"
+        },
+        Grade::Early => {
+            "Early"
+        },
+        Grade::Late => {
+            "Late"
         }
     };
+
+
+    let streak_begin = 3;
+    if correct_hit.grade.is_perfect() && song_metrics.streak() >= streak_begin {
+        content = match song_metrics.streak() - streak_begin {
+            0 => "SUPER-!",
+            1 => "SUPER-POWER-!",
+            2 => "SUPER-POWER-NINJA-!",
+            3 => "SUPER-POWER-NINJA-TURBO-!",
+            4 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-!",
+            5 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-!",
+            6 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-!",
+            7 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-!",
+            8 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-!",
+            9 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-!",
+            10 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-!",
+            11 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-!",
+            12 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-COMBO!",
+            n => {
+                let n = n - 12;
+                let content = &format!("SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-COMBO! x{n}");
+                set_feedback_text_content(content, time, query, FeedbackStyle::Success);
+                return;
+            }
+        };
+
+    }
+
+    
     set_feedback_text_content(content, time, query, FeedbackStyle::Success);
 }
 
@@ -128,13 +149,27 @@ fn set_feedback_content_on_missfire(
     mut missfire_events: EventReader<MissfireEvent>,
 ) {
     // We read to the last missfire event, if there was one
-    let Some(_missfire) = missfire_events.read().last() else {
+    let Some(missfire) = missfire_events.read().last() else {
         // nothing to do
         return;
     };
 
-    // TODO: advanced feedback here
-    let mut content = "Butter Fingers";
+    let mut content = match &missfire.opt_hit {
+        Some((_, Grade::Early)) => {
+            "Too early!"
+        }
+        Some((_, Grade::Late)) => {
+            "Too late!"
+        },
+        _ => {
+            use rand::seq::SliceRandom;
+            let mut rng = rand::thread_rng();
+            ["Butter fingers", "Whoops", "Turn off sticky keys", "Try again", "Not that time!", "Oops!", "Missclicked"]
+                .choose(&mut rng)
+                .copied()
+                .expect("at least one option")
+        },
+    };
 
     if song_metrics.just_broke_streak() {
         content = "Streak broken!";

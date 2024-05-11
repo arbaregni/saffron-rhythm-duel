@@ -66,13 +66,17 @@ pub fn update_metrics(
     // The user presses the note on time.
     // It can still be a little to early or a little to late,
     // but it's within threshold.
-    for _correct_hit in hit_events.read() {
+    for correct_hit in hit_events.read() {
         log::info!("metrics - processing hit event");
 
         metrics.total_arrows += 1;
         metrics.success_arrows += 1;
 
-        metrics.streak += 1;
+        if correct_hit.grade.is_perfect() {
+            metrics.streak += 1;
+        } else {
+            metrics.streak = 0;
+        }
         metrics.missfires_in_a_row = 0;
         metrics.dropped_notes_in_a_row = 0;
 
