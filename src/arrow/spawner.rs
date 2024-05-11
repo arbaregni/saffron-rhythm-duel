@@ -21,6 +21,16 @@ pub enum ArrowStatus {
     /// Has been clicked
     Completed,
 }
+impl ArrowStatus {
+    /// Is this arrow still on the  board?
+    /// I.e. can the user still click it.
+    pub fn is_pending(self) -> bool {
+        match self {
+            ArrowStatus::Pending => true,
+            ArrowStatus::Completed => false,
+        }
+    }
+}
 
 #[derive(Resource)]
 #[derive(Debug, Clone)]

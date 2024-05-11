@@ -44,6 +44,9 @@ struct CliArgs {
     #[arg(short, long, value_enum, default_value_t)]
     on_finish: arrow::FinishBehavior,
 
+    #[arg(short, long, default_value = "0.3")]
+    fallback_beat_duration: f32,
+
     #[arg(short, long)]
     debug: bool,
 }

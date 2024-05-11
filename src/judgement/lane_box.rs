@@ -54,10 +54,8 @@ fn create_lane_box_on_press(
     let initial_alpha = 0.1;
 
     for ev in input_events.read() {
-        let InputActionEvent::LaneHit(lane) = ev else {
-            // nothing to do here
-            continue;
-        };
+        let InputActionEvent::LaneHit(lane) = ev; // only type of input action for now
+
         let pos = Vec3::new(lane.center_x(), 0.0, 0.0);
 
         let color = lane.colors().light.with_a(initial_alpha);

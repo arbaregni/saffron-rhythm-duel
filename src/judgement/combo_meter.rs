@@ -1,8 +1,11 @@
 use bevy::prelude::*;
 
 use super::{
-    SongMetrics,
+    metrics,
     CorrectHitEvent,
+    DroppedNoteEvent,
+    MissfireEvent,
+    SongMetrics,
 };
 
 #[derive(Component)]
@@ -12,6 +15,7 @@ pub struct FeedbackText {
 
 const FEEDBACK_TEXT_MAX_SHOW_TIME: f32 = 0.7; // seconds
 
+/// Setups the resources for the feedback text.
 fn setup_feedback_text(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
@@ -58,63 +62,125 @@ fn setup_feedback_text(
 
 }
 
-fn update_feedback_text(
+/// Sets the feedback text contents
+fn set_feedback_text_content(
+    content: &str,
     time: Res<Time>,
-    song_metrics: Res<SongMetrics>,
-    mut correct_events: EventReader<CorrectHitEvent>,
     mut query: Query<(&mut Text, &mut FeedbackText)>,
 ) {
     let now = time.elapsed().as_secs_f32();
+    let (mut text, mut feedback) = query.single_mut();
 
-    let Some((mut text, mut feedback)) = query.iter_mut().nth(0) else {
-        log::warn!("no feedback item found");
+    feedback.last_updated = now;
+    text.sections[0].value.clear();
+    text.sections[0].value.push_str(content);
+}
+    
+/// Display a message to the user when they hit a note correctly.
+fn set_feedback_content_on_correct_hit(
+    time: Res<Time>,
+    song_metrics: Res<SongMetrics>,
+    mut correct_events: EventReader<CorrectHitEvent>,
+    query: Query<(&mut Text, &mut FeedbackText)>,
+) {
+    // we just want to know if there have been correct events, we'll handle them all now
+    let Some(_correct_hit) = correct_events.read().last() else {
+        return; // nothing to do
+    };
+
+    // TODO: advanced feedback here
+    //
+    let content = match song_metrics.streak() {
+        0 => "",
+        1..=2 => "Good",
+        3 => "Nice",
+        4 => "Great!",
+        5 => "Amazing!",
+        6 => "Wonderful!",
+        7 => "Fantastic!!",
+        8..=19 => "Outstanding!!!",
+
+        20 => "SUPER-!",
+        21 => "SUPER-POWER-!",
+        22 => "SUPER-POWER-NINJA-!",
+        23 => "SUPER-POWER-NINJA-TURBO-!",
+        24 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-!",
+        25 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-!",
+        26 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-!",
+        27 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-!",
+        28 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-!",
+        29 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-!",
+        30 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-!",
+        31 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-!",
+        32 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-COMBO!",
+
+        n => {
+            let n = n - 32;
+            let content = &format!("SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-COMBO! x{n}");
+            set_feedback_text_content(content, time, query);
+            return;
+        }
+    };
+    set_feedback_text_content(content, time, query);
+}
+
+
+/// Displays a message to the user when they missfire.
+/// That is, either click it to early or too late to be considered a hit.
+fn set_feedback_content_on_missfire(
+    time: Res<Time>,
+    song_metrics: Res<SongMetrics>,
+    query: Query<(&mut Text, &mut FeedbackText)>,
+    mut missfire_events: EventReader<MissfireEvent>,
+) {
+    // We read to the last missfire event, if there was one
+    let Some(_missfire) = missfire_events.read().last() else {
+        // nothing to do
         return;
     };
 
-    for _event in correct_events.read() {
+    // TODO: advanced feedback here
+    let mut content = "Butter Fingers";
 
-
-        // TODO: advanced feedback here
-        //
-        feedback.last_updated = now;
-        text.sections[0].value.clear();
-        let text_value = match song_metrics.streak {
-            0 => "",
-            1..=2 => "Good",
-            3 => "Nice",
-            4 => "Great!",
-            5 => "Amazing!",
-            6 => "Wonderful!",
-            7 => "Fantastic!!",
-            8..=19 => "Outstanding!!!",
-
-            20 => "SUPER-!",
-            21 => "SUPER-POWER-!",
-            22 => "SUPER-POWER-NINJA-!",
-            23 => "SUPER-POWER-NINJA-TURBO-!",
-            24 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-!",
-            25 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-!",
-            26 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-!",
-            27 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-!",
-            28 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-!",
-            29 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-!",
-            30 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-!",
-            31 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-!",
-            32 => "SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-COMBO!",
-
-            n => {
-                let n = n - 32;
-                text.sections[0].value.push_str(&format!("SUPER-POWER-NINJA-TURBO-NEO-HYPER-MEGA-MULTI-ALPHA-META-EXTRA-UBER-PREFIX-COMBO! x{n}"));
-                continue;
-            }
-        };
-
-        text.sections[0].value.clear();
-        text.sections[0].value.push_str(text_value);
-
+    if song_metrics.just_broke_streak() {
+        content = "Streak broken!";
     }
 
+    set_feedback_text_content(content, time, query);
+}
+
+/// Displays message to the user when they don't hit a note.
+fn set_feedback_content_on_dropped_note(
+    time: Res<Time>,
+    song_metrics: Res<SongMetrics>,
+    query: Query<(&mut Text, &mut FeedbackText)>,
+    mut dropped_note_events: EventReader<DroppedNoteEvent>,
+) {
+    let Some(_dropped_note) = dropped_note_events.read().last() else {
+        // nothing to do
+        return;
+    };
+    log::info!("combo meter - consumed dropped note");
+
+    let mut content = "Miss";
+
+    if song_metrics.just_broke_streak() {
+        content = "Streak broken!";
+    }
+    set_feedback_text_content(content, time, query);
+}
+
+
+/// Fades out the feedback text over time.
+fn update_feedback_text(
+    time: Res<Time>,
+    mut query: Query<(&mut Text, &mut FeedbackText)>
+) {
+    let now = time.elapsed().as_secs_f32();
+    let (mut text, feedback) = query.single_mut();
+
     let t = (now - feedback.last_updated) / FEEDBACK_TEXT_MAX_SHOW_TIME;
+
     if t >= 1.0 {
         text.sections[0].value.clear();
         return;
@@ -123,12 +189,24 @@ fn update_feedback_text(
     text.sections[0].style.color.set_a(alpha);
 }
 
+
 pub struct ComboMeterPlugin;
 impl Plugin for ComboMeterPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Startup, setup_feedback_text)
             .add_systems(Update, update_feedback_text)
+
+            // We need to schedule these after the metrics update so that we can
+            // get the latest information on the frame the events are published
+            .add_systems(Update, set_feedback_content_on_correct_hit
+                                    .after(metrics::update_metrics))
+            .add_systems(Update, set_feedback_content_on_missfire
+                                    .after(metrics::update_metrics))
+            .add_systems(Update, set_feedback_content_on_dropped_note
+                                    .after(metrics::update_metrics))// issue where this isn't
+                                                                    // working... :(
+
         ;
 
 

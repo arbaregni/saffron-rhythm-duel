@@ -55,8 +55,6 @@ fn create_target_sparkle_on_correct_hit(
 
     for event in correct_events.read() {
 
-        log::info!("correct event, spawning a little funny guy");
-
         let sparkle = TargetSparkle {
             created_at: now,
         };
