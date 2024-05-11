@@ -4,7 +4,6 @@ mod arrow;
 mod lane;
 mod judgement;
 mod ui;
-mod shaders;
 mod layout;
 mod record;
 mod input;
@@ -99,7 +98,6 @@ fn main() -> Result<()> {
             }),
             ..default()
         }))
-        .add_plugins(MaterialPlugin::<shaders::CustomMaterial>::default())
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_plugins(arrow::ArrowsPlugin)
         .add_plugins(judgement::TargetsPlugin)
