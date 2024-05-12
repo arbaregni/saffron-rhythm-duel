@@ -6,8 +6,8 @@ mod animations;
 
 use bevy::prelude::*;
 
-use crate::{
-    Config
+use crate::team_markers::{
+    PlayerMarker
 };
 
 use crate::lane::{
@@ -17,8 +17,8 @@ use crate::arrow::{
     Arrow,
 };
 use crate::layout::{
+    SongPanel,
     BBox,
-    Layer
 };
 use crate::input::InputActionEvent;
 
@@ -29,22 +29,12 @@ pub use metrics::{
 fn world() -> BBox {
     crate::world()
 }
-fn target_height() -> f32 {
-    20.0 // the arrow height
-}
-fn target_line_y() -> f32 {
-    world().bottom() + 0.5 * target_height()
-}
-fn arrow_drop_line_y() -> f32 {
-    // once the arrow is no longer visible, it's too late for the player to click it
-    world().bottom() - target_height() * 1.5
-}
 
 pub const KEYPRESS_TOLERANCE_SECS: f32 = 0.5; // in seconds
 
 #[derive(Component)]
-struct LaneTarget {
-    lane: Lane,
+pub struct LaneTarget {
+    pub lane: Lane,
 }
 impl LaneTarget {
     pub fn lane(&self) -> Lane {
@@ -52,10 +42,14 @@ impl LaneTarget {
     }
 }
 
-const LANE_LETTER_ALPHA: f32 = 0.3;
 #[derive(Component)]
-struct LaneLetter {
-    lane: Lane
+pub struct LaneLetter {
+    pub lane: Lane
+}
+impl LaneLetter {
+    pub fn alpha() -> f32 {
+        0.3 // default alpha for the lane letter
+    }
 }
 
 /// Represents when the user hits the lane and there is a nearby note
@@ -133,85 +127,6 @@ impl Grade {
 }
 
 
-
-// Draws the targets on the target line
-fn setup_targets(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    config: Res<Config>,
-) {
-    for &lane in Lane::all() {
-        let lane_target = LaneTarget {
-            lane,
-        };
-
-        let z = Layer::Targets.z();
-        let pos = Vec3::new(lane.center_x(), target_line_y(), z);
-        let transform = Transform {
-            translation: pos,
-            scale: Arrow::size(),
-            ..default()
-        };
-
-        let color = lane.colors().light;
-        let sprite = Sprite {
-            color,
-            ..default()
-        };
-
-        commands
-            .spawn((
-                lane_target,
-                SpriteBundle {
-                    transform,
-                    sprite,
-                    ..default()
-                }
-            ));
-
-        // spawn a letter above the lane
-
-        {
-            let text_content = config.keybindings.key_name(lane).to_uppercase();
-
-            let font = asset_server.load(crate::BASE_FONT_NAME);
-            let font_size = 50.0;
-            let color = lane.colors().light.with_a(LANE_LETTER_ALPHA);
-            
-
-            let z = Layer::AboveTargets.z();
-            let transform = Transform {
-                translation: Vec3::new(lane.center_x(), target_line_y() + 50.0, z),
-                ..default()
-            };
-
-            let style = TextStyle { font, font_size, color };
-            let text = Text {
-                sections: vec![
-                    TextSection {
-                        value: text_content,
-                        style,
-                    }
-                ],
-                ..default()
-            };
-
-            commands.spawn((
-                LaneLetter {
-                    lane
-                },
-                Text2dBundle {
-                    text,
-                    transform,
-                    ..default()
-                }
-            ));
-             
-        }
-
-    }
-
-}
 
 /// Listens for Input actions where the user (correctly or incorrectly) attempts to complete a note
 fn judge_lane_hits(
@@ -317,11 +232,14 @@ fn judge_lane_hits(
 fn despawn_arrows(
     mut commands: Commands,
     mut events: EventWriter<DroppedNoteEvent>,
-    query: Query<(Entity, &Transform, &Arrow)>
+    panel: Query<&SongPanel, With<PlayerMarker>>,
+    query: Query<(Entity, &Transform, &Arrow), With<PlayerMarker>>
 ) {
+    let panel = panel.single();
+
     for (entity, transform, arrow) in query.iter() {
         let y = transform.translation.y;
-        if y < arrow_drop_line_y() {
+        if y < panel.arrow_drop_line_y() {
 
             // it's low enough to despawn
             commands.entity(entity).despawn();
@@ -349,7 +267,6 @@ impl Plugin for TargetsPlugin {
             .add_event::<DroppedNoteEvent>()
             
             // Add the systems
-            .add_systems(Startup, setup_targets)
             .add_systems(Update, judge_lane_hits)
             .add_systems(Update, despawn_arrows)
             .add_systems(Update, animations::darken_on_press)

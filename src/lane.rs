@@ -31,9 +31,6 @@ impl Lane {
     pub const fn lane_count() -> usize {
         Lane::all().len()
     }
-    pub fn lane_width() -> f32 {
-        world().width() / Lane::lane_count() as f32
-    }
     pub fn random() -> Lane {
         use rand::seq::SliceRandom;
         let mut rng = rand::thread_rng();
@@ -71,13 +68,6 @@ impl Lane {
             },
         }
     }
-    pub fn center_x(self) -> f32 {
-        let left = world().left();
-        let begin = left + Lane::lane_width() * 0.5;
-        let lane_num = self as u8 as f32;
-
-        begin + lane_num * Lane::lane_width()
-    }
 
     pub fn keycode(self) -> KeyCode {
         use Lane::*;
@@ -108,26 +98,39 @@ pub struct ColorConfig {
 
 #[derive(Debug, Clone)]
 pub struct LaneMap<T> {
-    inner: [T; 4]
+    items: [T; 4]
 }
 impl <T: Default> LaneMap<T> {
     pub fn new() -> LaneMap<T> {
         LaneMap {
-            inner: [T::default(), T::default(), T::default(), T::default()]
+            items: [T::default(), T::default(), T::default(), T::default()]
         }
     }
 }
+impl <T> LaneMap<T> {
+    pub fn from(items: [T; 4]) -> LaneMap<T> {
+        LaneMap {
+            items
+        }
+    }
+    pub fn iter(&self) -> impl Iterator<Item = (Lane, &T)> {
+        Lane::all()
+            .iter()
+            .map(|lane| (*lane, &self[*lane]))
+    }
+}
+
 impl <T> std::ops::Index<Lane> for LaneMap<T> {
     type Output = T;
     fn index(&self, lane: Lane) -> &T {
         let idx = lane as u8 as usize;
-        &self.inner[idx]
+        &self.items[idx]
     }
 }
 impl <T> std::ops::IndexMut<Lane> for LaneMap<T> {
     fn index_mut(&mut self, lane: Lane) -> &mut T {
         let idx = lane as u8 as usize;
-        &mut self.inner[idx]
+        &mut self.items[idx]
     }
 }
 

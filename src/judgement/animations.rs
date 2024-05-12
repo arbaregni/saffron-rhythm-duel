@@ -1,16 +1,18 @@
 use bevy::prelude::*;
 
-use crate::lane::{
-    Lane,
-};
 use crate::input::InputActionEvent;
+
+use crate::team_markers::PlayerMarker;
+
+use crate::layout::{
+    SongPanel,
+};
 
 use super::{
     DroppedNoteEvent,
     CorrectHitEvent,
     LaneTarget,
     LaneLetter,
-    LANE_LETTER_ALPHA,
 };
 
 const DARKENED_DURATION: f32 = 0.25;
@@ -57,8 +59,8 @@ pub fn darken_on_press(
                 commands.entity(entity)
                         .insert(DarkeningEffect {
                             start_time: now,
-                            start_color: event_lane.colors().heavy.with_a(LANE_LETTER_ALPHA),
-                            end_color: event_lane.colors().light.with_a(LANE_LETTER_ALPHA),
+                            start_color: event_lane.colors().heavy.with_a(LaneLetter::alpha()),
+                            end_color: event_lane.colors().light.with_a(LaneLetter::alpha()),
                         });
             });
 
@@ -111,13 +113,16 @@ pub fn jostle_on_dropped_note(
     mut commands: Commands,
     query: Query<(Entity, &LaneLetter, &Transform)>,
     mut dropped_notes: EventReader<DroppedNoteEvent>,
+    panel: Query<&SongPanel, With<PlayerMarker>>,
 ) {
     let now = time.elapsed().as_secs_f32();
+
+    let panel = panel.single();
 
     for dropped_note in dropped_notes.read() {
         let event_lane = dropped_note.arrow.lane();
 
-        let x_extents = Lane::lane_width() / 6.0;
+        let x_extents = panel.lane_bounds(event_lane).width() / 6.0;
 
         query
             .iter()

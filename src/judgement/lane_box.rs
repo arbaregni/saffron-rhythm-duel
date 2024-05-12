@@ -14,10 +14,14 @@ use bevy::{
     },
 };
 
-use crate::lane::Lane;
 use crate::input::InputActionEvent;
+use crate::team_markers::PlayerMarker;
 
-use super::world;
+use crate::layout::{
+    SongPanel,
+    Layer,
+};
+    
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 struct LaneBoxMaterial {
@@ -48,19 +52,23 @@ fn create_lane_box_on_press(
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<LaneBoxMaterial>>,
+    panel: Query<&SongPanel, With<PlayerMarker>>,
 ) {
     let now = time.elapsed().as_secs_f32();
+
+    let panel = panel.single();
 
     let initial_alpha = 0.1;
 
     for ev in input_events.read() {
         let InputActionEvent::LaneHit(lane) = ev; // only type of input action for now
 
-        let pos = Vec3::new(lane.center_x(), 0.0, 0.0);
+        let mut pos = panel.lane_bounds(*lane).center();
+        pos.z = Layer::SongEffects.z();
 
         let color = lane.colors().light.with_a(initial_alpha);
 
-        let rect = Rectangle::new(Lane::lane_width(), world().height());
+        let rect = panel.lane_bounds(*lane).to_rectangle();
         let mesh = Mesh2dHandle(meshes.add(rect));
 
         let created_at = now;

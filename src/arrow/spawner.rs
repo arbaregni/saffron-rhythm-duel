@@ -57,11 +57,11 @@ impl Arrow {
             arrival_time,
         }
     }
+    pub fn height() -> f32 {
+        20.0 // hard coded for now
+    }
     pub fn lane(self) -> Lane {
         self.lane
-    }
-    pub fn size() -> Vec3 {
-        Vec3::new(Lane::lane_width(), 20.0, 0.0)
     }
     pub fn status(self) -> ArrowStatus {
         self.status

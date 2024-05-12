@@ -9,9 +9,11 @@ use bevy::prelude::*;
 
 use crate::CliArgs;
 use crate::lane::Lane;
+use crate::team_markers::PlayerMarker;
 use crate::layout::{
     BBox,
-    Layer
+    Layer,
+    SongPanel,
 };
 
 pub use chart::{
@@ -110,8 +112,11 @@ fn spawn_arrows(
     time: Res<Time>,
     mut spawner: ResMut<ArrowSpawner>,
     mut beat_events: EventReader<BeatTickEvent>,
+    panel: Query<&SongPanel, With<PlayerMarker>>,
 ) {
     let now = time.elapsed().as_secs_f32();
+
+    let panel = panel.single();
 
     // ========================================
     //    create the arrows
@@ -154,8 +159,14 @@ fn spawn_arrows(
 
     for arrow in spawner.arrow_buf.drain(..) {
 
+        let x = panel.lane_bounds(arrow.lane).center().x;
+        let y = panel.bounds().top();
         let z = Layer::Arrows.z();
-        let pos = Vec3::new(arrow.lane.center_x(), world().top(), z);
+        let pos = Vec3::new(x, y, z);
+
+        let width = panel.lane_bounds(arrow.lane).width();
+        let height = Arrow::height();
+        let scale = Vec3::new(width, height, 1.0);
 
         commands
             .spawn((
@@ -163,7 +174,7 @@ fn spawn_arrows(
                 SpriteBundle {
                     transform: Transform {
                         translation: pos,
-                        scale: Arrow::size(),
+                        scale,
                         ..default()
                     },
                     sprite: Sprite {

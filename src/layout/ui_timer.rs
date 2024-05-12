@@ -1,11 +1,9 @@
-use bevy::{
-    prelude::*
-};
+use bevy::prelude::*;
 
 #[derive(Component)]
-struct TimeText;
+pub struct TimeText;
 
-fn setup_ui(
+pub fn setup(
     mut commands: Commands,
     asset_server: ResMut<AssetServer>,
 ) {
@@ -38,7 +36,7 @@ fn setup_ui(
         });
 }
 
-fn update_time_text(time: Res<Time>, mut query: Query<(&mut Text, &TimeText)>) {
+pub fn update_time_text(time: Res<Time>, mut query: Query<(&mut Text, &TimeText)>) {
     let secs = time.elapsed().as_secs_f64();
 
     for (mut text, _) in query.iter_mut() {
@@ -47,11 +45,4 @@ fn update_time_text(time: Res<Time>, mut query: Query<(&mut Text, &TimeText)>) {
 
 }
 
-pub struct UiPlugin;
-impl Plugin for UiPlugin {
-    fn build(&self, app: &mut App) {
-        app
-            .add_systems(Startup, setup_ui)
-            .add_systems(Update, update_time_text);
-    }
-}
+

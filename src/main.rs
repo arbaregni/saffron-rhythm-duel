@@ -3,10 +3,10 @@
 mod arrow;
 mod lane;
 mod judgement;
-mod ui;
 mod layout;
 mod record;
 mod input;
+mod team_markers;
 
 use std::path::PathBuf;
 
@@ -28,7 +28,7 @@ pub const WORLD_HEIGHT: f32 = 600.0;
 
 pub const BACKGROUND_COLOR: Color = Color::rgb(27.0 / 255.0, 32.0 / 255.0, 33.0 / 255.0); // eerie black 
 pub fn world() -> BBox {
-    BBox::from_size(800.0, 600.0)
+    BBox::from_size(800.0, 600.0) // cut in hhalf from world size;
 }
 
 #[derive(Parser)]
@@ -116,7 +116,7 @@ fn main() -> Result<()> {
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_plugins(arrow::ArrowsPlugin)
         .add_plugins(judgement::TargetsPlugin)
-        .add_plugins(ui::UiPlugin)
+        .add_plugins(layout::UiPlugin)
         .add_plugins(input::InputPlugin)
         .add_systems(Update, close_on_esc)
         .run();
@@ -135,7 +135,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         source: asset_server.load("sounds/Windless Slopes.ogg"),
         ..default()
     });
-
 }
 
 

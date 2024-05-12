@@ -14,9 +14,16 @@ use bevy::{
     },
 };
 
+use crate::team_markers::{
+    PlayerMarker
+};
+use crate::layout::{
+    Layer,
+    SongPanel
+};
+
 use super::{
     CorrectHitEvent,
-    target_line_y,
 };
 
 
@@ -47,9 +54,11 @@ fn create_target_sparkle_on_correct_hit(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<SparkleMaterial>>,
     time: Res<Time>,
+    panel: Query<&SongPanel, With<PlayerMarker>>,
     mut correct_events: EventReader<CorrectHitEvent>,
 ) {
     let now = time.elapsed().as_secs_f32();
+    let panel = panel.single();
 
     let initial_radius = 10.0;
 
@@ -71,8 +80,11 @@ fn create_target_sparkle_on_correct_hit(
         }));
         let scale = Vec3::splat(initial_radius);
 
-        let position = Vec3::new(event.lane.center_x(), target_line_y(), 0.0);
-
+        let position = Vec3::new(
+            panel.lane_bounds(event.lane).center().x,
+            panel.target_line_y(),
+            Layer::AboveTargets.z()
+        );
 
         commands.spawn((sparkle,
             MaterialMesh2dBundle {
