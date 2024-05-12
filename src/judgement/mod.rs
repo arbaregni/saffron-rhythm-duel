@@ -1,8 +1,14 @@
 mod metrics;
 mod lane_box;
-mod combo_meter;
+mod feedback_text;
 mod target_sparkles;
 mod animations;
+mod lane_widgets;
+pub use lane_widgets::{
+    LaneTarget,
+    LaneLetter,
+};
+
 
 use bevy::prelude::*;
 
@@ -31,26 +37,6 @@ fn world() -> BBox {
 }
 
 pub const KEYPRESS_TOLERANCE_SECS: f32 = 0.5; // in seconds
-
-#[derive(Component)]
-pub struct LaneTarget {
-    pub lane: Lane,
-}
-impl LaneTarget {
-    pub fn lane(&self) -> Lane {
-        self.lane
-    }
-}
-
-#[derive(Component)]
-pub struct LaneLetter {
-    pub lane: Lane
-}
-impl LaneLetter {
-    pub fn alpha() -> f32 {
-        0.3 // default alpha for the lane letter
-    }
-}
 
 /// Represents when the user hits the lane and there is a nearby note
 #[derive(Event)]
@@ -278,7 +264,7 @@ impl Plugin for TargetsPlugin {
             
             // Add the plugins
             .add_plugins(lane_box::LaneBoxPlugin)
-            .add_plugins(combo_meter::ComboMeterPlugin)
+            .add_plugins(feedback_text::FeedbackTextPlugin)
             .add_plugins(target_sparkles::TargetSparklesPlugin)
             .add_plugins(metrics::MetricsPlugin)
         ;

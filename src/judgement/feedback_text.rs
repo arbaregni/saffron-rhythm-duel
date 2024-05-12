@@ -5,7 +5,6 @@ use bevy::text::{
 
 use crate::layout::{
     Layer,
-    SongPanel,
     SongPanelSetupContext,
 };
 
@@ -285,8 +284,8 @@ fn update_feedback_text(
 }
 
 
-pub struct ComboMeterPlugin;
-impl Plugin for ComboMeterPlugin {
+pub struct FeedbackTextPlugin;
+impl Plugin for FeedbackTextPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Update, update_feedback_text)
