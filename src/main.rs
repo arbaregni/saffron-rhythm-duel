@@ -23,12 +23,10 @@ use serde::Deserialize;
 use layout::BBox;
 use lane::Lane;
 
-pub const WORLD_WIDTH: f32 = 400.0;
-pub const WORLD_HEIGHT: f32 = 600.0;
-
 pub const BACKGROUND_COLOR: Color = Color::rgb(27.0 / 255.0, 32.0 / 255.0, 33.0 / 255.0); // eerie black 
+
 pub fn world() -> BBox {
-    BBox::from_size(800.0, 600.0) // cut in hhalf from world size;
+    BBox::from_size(1600.0, 800.0) // cut in hhalf from world size;
 }
 
 #[derive(Parser)]

@@ -1,4 +1,13 @@
 use bevy::prelude::*;
+use bevy::text::{
+    Text2dBounds
+};
+
+use crate::layout::{
+    Layer,
+    SongPanel,
+    SongPanelSetupContext,
+};
 
 use super::{
     metrics,
@@ -25,50 +34,62 @@ impl FeedbackText {
 
 
 /// Setups the resources for the feedback text.
-fn setup_feedback_text(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
-    let font = asset_server.load(crate::BASE_FONT_NAME);
-    let font_size = 100.0;
-    let color = Color::rgb(0.9, 0.9, 0.9);
+impl <'a, 'w, 's, T> SongPanelSetupContext<'a, 'w, 's, T>
+where T: Component + Copy
+{
+    pub fn setup_feedback_text(mut self) -> Self {
+        let Self {
+            commands,
+            marker,
+            asset_server,
+            panel,
+            ..
+        } = &mut self;
 
-    let style = TextStyle { font, font_size, color };
-    let text = Text {
-        sections: vec![
-            TextSection {
-                value: "".to_string(),
-                style,
-            }
-        ],
-        ..default()
-    };
+        let font = asset_server.load(crate::BASE_FONT_NAME);
+        let font_size = 100.0;
+        let color = Color::rgb(0.9, 0.9, 0.9); // off white is a nice text color with this
+                                               // backgournd
 
-    commands.spawn(
-        NodeBundle {
-            style: Style {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                flex_direction: FlexDirection::Column,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
+        let text_content = "".to_string();
+
+        let mut pos = panel.bounds().center();
+        pos.z = Layer::TextAlerts.z();
+
+        let transform = Transform {
+            translation: pos,
             ..default()
-        })
-        .with_children(|parent| {
-            parent
-                .spawn((
-                    FeedbackText::new(),
-                    TextBundle {
-                        text,
-                        ..default()
-                    }
-                ));
-        });
+        };
+
+        let style = TextStyle { font, font_size, color };
+        let text = Text {
+            sections: vec![
+                TextSection {
+                    value: text_content,
+                    style,
+                }
+            ],
+            ..default()
+        };
+
+        commands.spawn((
+            marker.clone(),
+            FeedbackText::new(),
+            Text2dBundle {
+                text,
+                transform,
+                text_2d_bounds: Text2dBounds {
+                    size: panel.bounds().size().truncate() // clips of the z component
+                },
+                ..default()
+            }
+        ));
+
+
+        self
+    }
 
 }
-
     
 /// Display a message to the user when they hit a note correctly.
 fn set_feedback_content_on_correct_hit(
@@ -268,7 +289,6 @@ pub struct ComboMeterPlugin;
 impl Plugin for ComboMeterPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_systems(Startup, setup_feedback_text)
             .add_systems(Update, update_feedback_text)
 
             // We need to schedule these after the metrics update so that we can

@@ -25,6 +25,7 @@ pub struct SongPanel {
     lanes: LaneMap<BBox>,
 }
 
+
 impl SongPanel {
     pub fn new(bounds: BBox) -> SongPanel {
         // split the space into 4
@@ -37,6 +38,7 @@ impl SongPanel {
         }
 
     }
+
     
     pub fn target_height(&self) -> f32 {
         crate::arrow::Arrow::height()
@@ -62,79 +64,97 @@ impl SongPanel {
         &self.lanes[lane]
     }
 
-    pub fn setup<T>(self,
-                        tag: T,
-                        commands: &mut Commands,
-                        asset_server: &AssetServer,
-                        config: &Config,
-    ) where T: Component + Copy
+    pub fn build<'a, 'w, 's, T>(self,
+                        marker: T,
+                        commands: &'a mut Commands<'w, 's>,
+                        asset_server: &'a AssetServer,
+                        config: &'a Config,
+    ) -> SongPanelSetupContext<'a, 'w, 's, T>
+        where T: Component + Copy
     {
-        for (lane, bbox) in self.lanes.iter() {
-            // the lane target
-            self.setup_lane_target(lane, bbox, tag, commands);
-            self.setup_lane_letter(lane, bbox, tag, commands, asset_server, config);
+        SongPanelSetupContext {
+            panel: self,
+            marker,
+            commands,
+            asset_server,
+            config,
+            _extra: (),
         }
-        
-        // spawn ourselves
-        commands.spawn((self, tag));
+    }
+}
 
+pub struct SongPanelSetupContext<'a, 'w, 's, T> {
+    pub panel: SongPanel,
+    pub marker: T,
+    pub commands: &'a mut Commands<'w, 's>,
+    pub asset_server: &'a AssetServer,
+    pub config: &'a Config,
+    // prevents users from exhaustively pattern matching
+    _extra: (),
+}
+
+
+impl <'a, 'w, 's, T> SongPanelSetupContext<'a, 'w, 's, T>
+where T: Component + Copy
+{
+
+    /// Creates the targets on the bottom and attaches the appropriate marker
+    pub fn setup_lane_targets(self) -> Self {
+
+        for (lane, bounds) in self.panel.lanes.iter() {
+            let lane_target = LaneTarget {
+                lane
+            };
+
+            let x = bounds.center().x;
+            let y = self.panel.target_line_y();
+            let z = Layer::Targets.z();
+            let pos = Vec3::new(x, y, z);
+
+            let width = bounds.width();
+            let height = self.panel.target_height();
+            let scale = Vec3::new(width, height, 1.0);
+
+            let transform = Transform {
+                translation: pos,
+                scale,
+                ..default()
+            };
+
+            let color = lane.colors().light;
+            let sprite = Sprite {
+                color,
+                ..default()
+            };
+
+            self.commands
+                .spawn((
+                    self.marker,
+                    lane_target,
+                    SpriteBundle {
+                        transform,
+                        sprite,
+                        ..default()
+                    }
+                ));
+
+        }
+
+        self
     }
 
-    fn setup_lane_target<T: Component + Copy>(&self, lane: Lane, bounds: &BBox, marker: T,
-                                              commands: &mut Commands) {
+    /// Creates the letters on the bottom and attaches the appropriate marker
+    pub fn setup_lane_letters(self) -> Self {
+        for (lane, bounds) in self.panel.lanes.iter() {
 
-        let lane_target = LaneTarget {
-            lane
-        };
+            let text_content = self.config.keybindings.key_name(lane).to_uppercase();
 
-        let x = bounds.center().x;
-        let y = self.target_line_y();
-        let z = Layer::Targets.z();
-        let pos = Vec3::new(x, y, z);
-
-        let width = bounds.width();
-        let height = self.target_height();
-        let scale = Vec3::new(width, height, 1.0);
-
-        let transform = Transform {
-            translation: pos,
-            scale,
-            ..default()
-        };
-
-        let color = lane.colors().light;
-        let sprite = Sprite {
-            color,
-            ..default()
-        };
-
-        commands
-            .spawn((
-                marker,
-                lane_target,
-                SpriteBundle {
-                    transform,
-                    sprite,
-                    ..default()
-                }
-            ));
-
-
-    }
-
-    fn setup_lane_letter<T: Component + Copy>(&self, lane: Lane, bounds: &BBox, marker: T,
-                                              commands: &mut Commands,
-                                              asset_server: &AssetServer,
-                                              config: &Config,
-    ) {
-            let text_content = config.keybindings.key_name(lane).to_uppercase();
-
-            let font = asset_server.load(crate::BASE_FONT_NAME);
+            let font = self.asset_server.load(crate::BASE_FONT_NAME);
             let font_size = 50.0;
             let color = lane.colors().light.with_a(LaneLetter::alpha());
             
             let x = bounds.center().x;
-            let y = self.target_line_y() + self.lane_letter_height();
+            let y = self.panel.target_line_y() + self.panel.lane_letter_height();
             let z = Layer::AboveTargets.z();
 
             let transform = Transform {
@@ -153,8 +173,8 @@ impl SongPanel {
                 ..default()
             };
 
-            commands.spawn((
-                marker,
+            self.commands.spawn((
+                self.marker,
                 LaneLetter {
                     lane
                 },
@@ -164,7 +184,26 @@ impl SongPanel {
                     ..default()
                 }
             ));
+            
+        }
              
+        self
+    }
+
+
+    /// Creates the SongPanel entity and drops the setup context object
+    pub fn finish(self) {
+
+        let Self {
+            commands,
+            marker,
+            panel,
+            ..
+        } = self;
+
+        // spawn the panel
+        commands.spawn((marker, panel));
+
     }
 
 }

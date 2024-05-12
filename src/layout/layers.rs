@@ -4,6 +4,7 @@ pub enum Layer {
     Targets = 10,
     AboveTargets = 20,
     SongEffects = 30,
+    TextAlerts = 40,
 }
 impl Layer {
     // Get the z value of this layer

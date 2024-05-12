@@ -9,6 +9,8 @@ pub fn setup(
 ) {
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
 
+    log::info!("seting up time text");
+
     commands
         .spawn(NodeBundle {
             style: Style {

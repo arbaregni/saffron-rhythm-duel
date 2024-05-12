@@ -17,6 +17,9 @@ use bevy::{
 use crate::team_markers::{
     PlayerMarker
 };
+use crate::lane::{
+    Lane
+};
 use crate::layout::{
     Layer,
     SongPanel
@@ -46,8 +49,9 @@ struct TargetSparkle {
     created_at: f32,
 }
 const TARGET_SPARKLE_MAX_TIME: f32 = 0.3;
-const TARGET_SPARKLE_INITIAL_RADIUS: f32 = 0.3;
-const TARGET_SPARKLE_FINAL_RADIUS: f32 = 100.0;
+const TARGET_SPARKLE_INITIAL_RADIUS: f32 = 0.0; // 0% of the lane 
+const TARGET_SPARKLE_FINAL_RADIUS: f32 = 0.5; // 100% of the lane (the radius is half of the
+                                              // diameter, which we want to be the full lane)
 
 fn create_target_sparkle_on_correct_hit(
     mut commands: Commands,
@@ -105,22 +109,31 @@ fn update_target_sparkles(
     mut commands: Commands,
     time: Res<Time>,
     mut query: Query<(Entity, &mut Transform, &TargetSparkle)>,
+    panel: Query<&SongPanel, With<PlayerMarker>>,
 ) {
     let now = time.elapsed().as_secs_f32();
+    let panel = panel.single();
+
+    // they should all be the same, but the ideal would be to get the appropriate lane
+    let initial_radius = panel.lane_bounds(Lane::L1).width() * TARGET_SPARKLE_INITIAL_RADIUS;
+    let final_radius = panel.lane_bounds(Lane::L1).width() * TARGET_SPARKLE_FINAL_RADIUS;
+
 
     for (entity, mut transform, target_sparkle) in query.iter_mut() {
 
         let t = (now - target_sparkle.created_at) / TARGET_SPARKLE_MAX_TIME;
 
-        if t >= 1.0 {
-            commands.entity(entity).despawn();
-        }
+        
 
         // expand the radius over time
         // [0,1] -> [initial_radius, final_radius]
-        let radius = t * (TARGET_SPARKLE_FINAL_RADIUS - TARGET_SPARKLE_INITIAL_RADIUS) + TARGET_SPARKLE_INITIAL_RADIUS;
+        let radius = initial_radius * (1.0 - t) + final_radius * t;
 
         transform.scale = Vec3::splat(radius);
+
+        if t >= 1.0 {
+            commands.entity(entity).despawn();
+        }
 
     }
 }
