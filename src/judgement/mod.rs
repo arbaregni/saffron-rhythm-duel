@@ -288,6 +288,7 @@ fn despawn_arrows(
     for (entity, transform, arrow) in query.iter() {
         let y = transform.translation.y;
         if y < panel.arrow_drop_line_y() {
+            log::info!("despawning arrow: {arrow:?}");
 
             // it's low enough to despawn
             commands.entity(entity).despawn();

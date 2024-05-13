@@ -171,6 +171,7 @@ fn spawn_arrows(
         commands
             .spawn((
                 arrow,
+                PlayerMarker, // important! need this for proper querying
                 SpriteBundle {
                     transform: Transform {
                         translation: pos,

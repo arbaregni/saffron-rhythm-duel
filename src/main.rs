@@ -82,13 +82,34 @@ const BASE_FONT_NAME: &str = "fonts/FiraSans-Bold.ttf";
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
 
-    pretty_env_logger::formatted_timed_builder()
-        .filter_level(if cli.debug {
-            log::LevelFilter::Debug
-        } else {
-            log::LevelFilter::Info
+    //pretty_env_logger::init();
+    /*
+    env_logger::builder()
+        .format(|f, record| {
+            use std::io::Write;
+            use log::Level::*;
+
+            let target = record.target();
+
+            let level = match record.level() {
+                Trace => "TRACE",
+                Debug => "DEBUG",
+                Info  => "INFO",
+                Warn  => "WARN",
+                Error => "ERROR",
+            };
+
+            let module = record.module_path().unwrap_or("");
+
+            let time = f.timestamp_millis();
+
+            writeln!(f, " {time} {level} {target} {module} > {}", record.args(),)?;
+
+            Ok(())
         })
-        .build();
+        .try_init()
+        .expect("failed to initialize logger");
+        */
 
 
     log::info!("Reading config file...");
@@ -102,15 +123,18 @@ fn main() -> Result<()> {
         .insert_resource(cli)
         .insert_resource(config)
         .add_systems(Startup, setup)
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "Bevy Rhythm Tutorial".to_string(),
-                resolution: (world().width(), world().height()).into(),
-                window_theme: Some(WindowTheme::Dark),
-                ..default()
-            }),
-            ..default()
-        }))
+        .add_plugins(DefaultPlugins
+            .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: "Bevy Rhythm Tutorial".to_string(),
+                        resolution: (world().width(), world().height()).into(),
+                        window_theme: Some(WindowTheme::Dark),
+                        ..default()
+                    }),
+                    ..default()
+            })
+            //.disable::<bevy::log::LogPlugin>()
+        )
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_plugins(arrow::ArrowsPlugin)
         .add_plugins(judgement::TargetsPlugin)
