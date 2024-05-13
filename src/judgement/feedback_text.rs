@@ -23,12 +23,14 @@ use super::{
 pub struct FeedbackText {
     last_updated: f32,
     initial_scale: f32,
+    duration: f32,
 }
 impl FeedbackText {
     pub fn new() -> Self {
         Self {
             last_updated: 0.0,
             initial_scale: 1.0,
+            duration: 0.25,
         }
     }
 }
@@ -188,13 +190,10 @@ fn set_feedback_content_on_incorrect_hit(
 
     use FailingGrade::*;
 
-    let mut content = match &incorrect_hit.grade {
+    let content = match &incorrect_hit.grade {
         Early => "Too early!",
         Late => "Too late!",
     };
-    if song_metrics.just_broke_streak() {
-        content = "Streak broken!";
-    }
         
     set_feedback_text_content(content, time, query, FeedbackStyle::Failure);
 }
@@ -224,7 +223,7 @@ fn set_feedback_content_on_missfire(
         .expect("at least one option");
 
     if song_metrics.just_broke_streak() {
-        content = "Streak broken!";
+        content = "Broke streak!";
     }
 
     set_feedback_text_content(content, time, query, FeedbackStyle::Failure);
@@ -259,10 +258,12 @@ enum FeedbackStyle {
 
 
 const TEXT_SCALE_FOR_SUCCESS: f32 = 1.2;
-const TEXT_SCALE_FOR_FAILURE: f32 = 1.5;
-
 const TEXT_COLOR_FOR_SUCCESS: Color = Color::rgb(0.9, 0.9, 0.9); // off-white
+const SHOW_DURATION_ON_SUCCESS: f32 = 0.25;
+
+const TEXT_SCALE_FOR_FAILURE: f32 = 1.5;
 const TEXT_COLOR_FOR_FAILURE: Color = Color::rgb(171.0 / 256.0, 32.0 / 256.0, 46.0 / 256.0); // red
+const SHOW_DURATION_ON_FAILURE: f32 = 0.5;
 
 /// Sets the feedback text contents
 fn set_feedback_text_content(
@@ -282,17 +283,18 @@ fn set_feedback_text_content(
     match style {
         FeedbackStyle::Success => {
             feedback.initial_scale = TEXT_SCALE_FOR_SUCCESS;
+            feedback.duration = SHOW_DURATION_ON_SUCCESS;
             text.sections[0].style.color = TEXT_COLOR_FOR_SUCCESS;
         }
         FeedbackStyle::Failure => {
             feedback.initial_scale = TEXT_SCALE_FOR_FAILURE;
+            feedback.duration = SHOW_DURATION_ON_FAILURE;
             text.sections[0].style.color = TEXT_COLOR_FOR_FAILURE;
         }
     }
 }
 
 const TEXT_SCALE_END: f32 = 1.0;
-const FEEDBACK_TEXT_MAX_SHOW_TIME: f32 = 0.25; // seconds
 
 /// Animates out the feedback text over time.
 fn update_feedback_text(
@@ -302,7 +304,7 @@ fn update_feedback_text(
     let now = time.elapsed().as_secs_f32();
     let (mut text, feedback, mut transform) = query.single_mut();
 
-    let t = (now - feedback.last_updated) / FEEDBACK_TEXT_MAX_SHOW_TIME;
+    let t = (now - feedback.last_updated) / feedback.duration;
 
     if t >= 1.0 {
         text.sections[0].value.clear();
