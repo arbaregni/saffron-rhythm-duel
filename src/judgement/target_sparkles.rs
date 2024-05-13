@@ -72,7 +72,7 @@ fn create_target_sparkle_on_correct_hit(
             created_at: now,
         };
 
-        let color = event.lane.colors().base;
+        let color = event.lane_hit.lane.colors().base;
         let material = materials.add(SparkleMaterial {
             color,
             color_texture: None // Some(asset_server.load("icon.png"))
@@ -85,7 +85,7 @@ fn create_target_sparkle_on_correct_hit(
         let scale = Vec3::splat(initial_radius);
 
         let position = Vec3::new(
-            panel.lane_bounds(event.lane).center().x,
+            panel.lane_bounds(event.lane_hit.lane).center().x,
             panel.target_line_y(),
             Layer::AboveTargets.z()
         );

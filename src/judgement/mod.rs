@@ -38,98 +38,150 @@ fn world() -> BBox {
 
 pub const KEYPRESS_TOLERANCE_SECS: f32 = 0.5; // in seconds
 
-/// Represents when the user hits the lane and there is a nearby note
-#[derive(Event)]
-pub struct CorrectHitEvent {
+/// Represents an attempt from the user to hit a lane.
+#[derive(Debug,Clone)]
+pub struct LaneHit {
     /// Which lane it happened in
     pub lane: Lane,
     /// When the hit occured (game time)
     pub time_of_hit: f32,
-    /// The signed distance from the target line to the nearest note
-    pub delta_to_target: f32,
-    /// The grade the judgment system gave
-    pub grade: Grade,
 }
 
+/// Represents when the user hits the lane when an arrow is passing the target line, and it
+/// completes that arrow.
 #[derive(Event)]
+#[derive(Debug,Clone)]
+pub struct CorrectHitEvent {
+    /// The lane hit
+    pub lane_hit: LaneHit,
+    /// The grade the judgment system gave
+    pub grade: SuccessGrade,
+}
+
+/// Represents when the user hits the lane, and there is a nearby note,
+/// But we don't want to count it as 'completing' that note.
+#[derive(Event)]
+#[derive(Debug,Clone)]
+pub struct IncorrectHitEvent {
+    /// THe lane hit
+    lane_hit: LaneHit,
+    /// The grade the judgement system gave
+    pub grade: FailingGrade,
+}
+
 /// Event representing when the user attempts to complete a note, but are too early or late to be
 /// considered 'correct'
+#[derive(Event)]
+#[derive(Debug,Clone)]
 pub struct MissfireEvent {
-    /// Which lane it happened in
-    pub lane: Lane,
-    /// When the hit occured (game time)
-    pub time_of_hit: f32,
-    /// The signed distance from the target line to the nearest note,
-    /// if we can identify one.
-    pub opt_hit: Option<(f32, Grade)>,
+    /// The lane hit that originated this missfire
+    lane_hit: LaneHit,
 }
 
-#[derive(Event)]
-/// Event representing when an arrow never gets hit by the player
-pub struct DroppedNoteEvent {
-    arrow: Arrow,
+#[derive(Debug, Copy, Clone)]
+pub enum SuccessGrade {
+    Perfect,
+    Good,
+    Fair,
 }
-impl DroppedNoteEvent {
-    /// The arrow that was never hit.
-    pub fn arrow(&self) -> &Arrow {
-        &self.arrow
+impl SuccessGrade {
+    pub fn is_perfect(self) -> bool {
+        use SuccessGrade::*;
+        match self {
+            Perfect => true,
+            Good | Fair => false,
+        }
     }
 }
 
-pub const PERFECT_CUTOFF_SECS: f32 = 0.05;
-pub const FAIR_CUTOFF_SECS: f32 = 0.15;
+#[derive(Debug, Copy, Clone)]
+pub enum FailingGrade {
+    Early,
+    Late,
+}
+
+
+#[derive(Resource)]
+pub struct JudgementSettings {
+    // passing grades are perfect, good, and fair
+    perfect_cutoff: f32,
+    good_cutoff: f32,
+    fair_cutoff: f32,
+
+    // if it failed, we just say early or late.
+    // There's also the possibility that we couldn't find a note whatsoever
+}
+
 
 #[derive(Debug, Copy, Clone)]
 pub enum Grade {
-    Perfect,
-    Fair,
-    Late,
-    Early,
+    Success(SuccessGrade),
+    Fail(FailingGrade)
 }
-impl Grade {
-    fn from(arrival_time: f32, hit_time: f32) -> Grade {
-        let time_diff = (arrival_time - hit_time).abs();
-        if time_diff < PERFECT_CUTOFF_SECS {
-            Grade::Perfect
-        } else if time_diff < FAIR_CUTOFF_SECS {
-            Grade::Fair
+
+impl JudgementSettings {
+    pub fn new() -> Self {
+        Self {
+            perfect_cutoff: 0.05,
+            good_cutoff:    0.06,
+            fair_cutoff:    0.08,
+        }
+    }
+    pub fn judge(&self, lane_hit: &LaneHit, arrow: &Arrow) -> Grade {
+        let hit_time = lane_hit.time_of_hit;
+        let arrival_time = arrow.arrival_time();
+
+        let diff = (arrival_time - hit_time).abs();
+        if diff < self.perfect_cutoff {
+            Grade::Success(SuccessGrade::Perfect)
+        } else if diff < self.good_cutoff {
+            Grade::Success(SuccessGrade::Good)
+        } else if diff < self.fair_cutoff {
+            Grade::Success(SuccessGrade::Fair)
         } else {
-            if arrival_time < hit_time{
-                Grade::Early
+            
+            if hit_time < arrival_time {
+                // hit before it arrived
+                Grade::Fail(FailingGrade::Early)
             } else {
-                Grade::Late
+                Grade::Fail(FailingGrade::Late)
             }
+
         }
-    }
-    pub fn is_perfect(self) -> bool {
-        use Grade::*;
-        match self {
-            Perfect => true,
-            Fair => false,
-            Late => false,
-            Early => false,
-        }
-    }
+
+    } 
 }
 
 
 
 /// Listens for Input actions where the user (correctly or incorrectly) attempts to complete a note
+/// Consumes LaneHit events and creates
+///   -> CorrectHitEvent
+///   -> IncorrectHitEvent
+///   -> MissfireEvent
 fn judge_lane_hits(
     time: Res<Time>,
     mut input_events: EventReader<InputActionEvent>,
     mut query: Query<(&mut Arrow, &mut Sprite)>,
     mut correct_arrow_events: EventWriter<CorrectHitEvent>,
+    mut incorrect_arrow_events: EventWriter<IncorrectHitEvent>,
     mut missfire_events: EventWriter<MissfireEvent>,
+    judgement: Res<JudgementSettings>,
 ) {
 
     let now = time.elapsed().as_secs_f32();
 
     for input_action in input_events.read() {
         let InputActionEvent::LaneHit(event_lane) = input_action; // only input action type for now
-        // 
-        // Find the arrow with the closes arrival time 
-        //
+                                                                
+        let lane_hit = LaneHit {
+            lane: *event_lane,
+            time_of_hit: now
+        };
+
+        // ---------------------------------------------- 
+        // Find the arrow with the closest arrival time 
+        // ---------------------------------------------- 
 
         use ordered_float::NotNan;
         let search_result = query
@@ -139,11 +191,11 @@ fn judge_lane_hits(
             .filter(|(arrow, _)| arrow.status().is_pending())
             
             // only consider arrows in the lane that was hit
-            .filter(|(arrow, _)| arrow.lane() == *event_lane)
+            .filter(|(arrow, _)| arrow.lane() == lane_hit.lane)
 
             // Get the absolute arrival time of each
             .map(|(arrow, sprite)| {
-                let delta_time = arrow.arrival_time() - now;
+                let delta_time = arrow.arrival_time() - lane_hit.time_of_hit;
                 let time_diff = delta_time.abs();
                 (arrow, sprite, time_diff)
             })
@@ -159,52 +211,48 @@ fn judge_lane_hits(
             // Find the minimum
             .min_by_key(|(_, _, diff)| *diff);
 
-        // found a result, we need to send the appropriate event
-        match search_result {
-            None => {
-                // there was a misclick here since the user 
-                // pressed down when they should not have
 
-                log::info!("no arrow found in lane - sending missfire event");
-                missfire_events.send(MissfireEvent {
-                    lane: *event_lane,
-                    time_of_hit: now,
-                    opt_hit: None,
+        // ---------------------------------------------- 
+        // If we did not find anything, then that means it was a missfire.
+        // so we can send that off now and skip to the next lane hit
+        let Some((mut arrow, mut sprite, _time_diff)) = search_result else {
+            log::info!("No arrow found, sending a missfire event");
+            missfire_events.send(MissfireEvent {
+                lane_hit
+            });
+            continue;
+        };
+
+        // ---------------------------------------------- 
+        //   found an arrow, send it off to get judged
+        // ---------------------------------------------- 
+        log::info!("arrow found, judging now...");
+        let grade = judgement.judge(&lane_hit, arrow.as_ref());
+
+
+        // ---------------------------------------------- 
+        //    Process the grade
+        // ---------------------------------------------- 
+        match grade {
+            Grade::Success(grade) => {
+                // send the correct hit event
+
+                log::info!("marking arrow as completed");
+                arrow.mark_completed();
+                sprite.color = lane_hit.lane.colors().greyed;
+                log::info!("sending correct hit event");
+                correct_arrow_events.send(CorrectHitEvent {
+                    lane_hit,
+                    grade,
                 });
-
             }
-            Some((mut arrow, mut sprite, _)) => {
-                let delta_time = arrow.arrival_time() - now;
-
-                log::info!("arrow found - time to arrival was {delta_time:?}");
-
-                if delta_time.abs() >= KEYPRESS_TOLERANCE_SECS {
-                    // too far away to consider this correct
-                    log::info!("arrow found but it was too far away - sending missfire event");
-                    missfire_events.send(MissfireEvent {
-                        lane:  *event_lane,
-                        time_of_hit: now,
-                        opt_hit: Some((
-                            delta_time,
-                            Grade::from(arrow.arrival_time(), now)
-                        )),
-                    });
-
-                } else {
-                    arrow.mark_completed();
-
-                    // since it's been completed, move the color closer to grey
-                    sprite.color = arrow.lane().colors().greyed;
-
-                    // send the correct hit event
-                    log::info!("sending correct hit event");
-                    correct_arrow_events.send(CorrectHitEvent {
-                        lane: *event_lane,
-                        time_of_hit: now,
-                        delta_to_target: delta_time,
-                        grade: Grade::from(arrow.arrival_time(), now),
-                    });
-                }
+            Grade::Fail(grade) => {
+                log::info!("sending incorrect hit event");
+                incorrect_arrow_events.send(IncorrectHitEvent {
+                    lane_hit,
+                    grade,
+                });
+                
             }
         }
 
@@ -215,6 +263,20 @@ fn judge_lane_hits(
 
 }
 
+/// Event representing when an arrow never gets hit by the player
+#[derive(Event)]
+#[derive(Debug,Clone)]
+pub struct DroppedNoteEvent {
+    arrow: Arrow,
+}
+impl DroppedNoteEvent {
+    /// The arrow that was never hit.
+    pub fn arrow(&self) -> &Arrow {
+        &self.arrow
+    }
+}
+
+/// Despawns old arrows if they fall out of the screen and emits `DroppedNoteEvent`
 fn despawn_arrows(
     mut commands: Commands,
     mut events: EventWriter<DroppedNoteEvent>,
@@ -249,8 +311,11 @@ impl Plugin for TargetsPlugin {
         log::info!("building Targets plugin...");
         app
             .add_event::<CorrectHitEvent>()
+            .add_event::<IncorrectHitEvent>()
             .add_event::<MissfireEvent>()
             .add_event::<DroppedNoteEvent>()
+
+            .insert_resource::<JudgementSettings>(JudgementSettings::new())
             
             // Add the systems
             .add_systems(Update, judge_lane_hits)

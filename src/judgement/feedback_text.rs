@@ -11,9 +11,11 @@ use crate::layout::{
 use super::{
     metrics,
     CorrectHitEvent,
+    IncorrectHitEvent,
     DroppedNoteEvent,
     MissfireEvent,
-    Grade,
+    SuccessGrade,
+    FailingGrade,
     SongMetrics,
 };
 
@@ -101,12 +103,14 @@ fn set_feedback_content_on_correct_hit(
     let Some(correct_hit) = correct_events.read().last() else {
         return; // nothing to do
     };
+    log::info!("consumed correct hit");
 
+    use SuccessGrade::*;
+    use rand::seq::SliceRandom;
+    let mut rng = rand::thread_rng();
 
     let mut content = match &correct_hit.grade {
-        Grade::Perfect => {
-            use rand::seq::SliceRandom;
-            let mut rng = rand::thread_rng();
+        Perfect => {
             [
                 "Perfect!",
                 "Wonderful!",
@@ -117,14 +121,24 @@ fn set_feedback_content_on_correct_hit(
                 .copied()
                 .expect("at least one option")
         }
-        Grade::Fair => {
-            "Fair"
-        },
-        Grade::Early => {
-            "Early"
-        },
-        Grade::Late => {
-            "Late"
+        Good => {
+            [
+                "Good",
+                "Nice",
+            ]
+                .choose(&mut rng)
+                .copied()
+                .expect("at least one option")
+        }
+        Fair => {
+            [
+                "Fine",
+                "Fair",
+                "Ok",
+            ]
+                .choose(&mut rng)
+                .copied()
+                .expect("at least one option")
         }
     };
 
@@ -158,6 +172,33 @@ fn set_feedback_content_on_correct_hit(
     
     set_feedback_text_content(content, time, query, FeedbackStyle::Success);
 }
+   
+/// Display a message to the user when they hit a note correctly.
+fn set_feedback_content_on_incorrect_hit(
+    time: Res<Time>,
+    song_metrics: Res<SongMetrics>,
+    query: Query<(&mut Text, &mut FeedbackText)>,
+    mut incorrect_events: EventReader<IncorrectHitEvent>,
+) {
+    // we just want to know if there have been correct events, we'll handle them all now
+    let Some(incorrect_hit) = incorrect_events.read().last() else {
+        return; // nothing to do
+    };
+    log::info!("consumed incorrect_hit event");
+
+    use FailingGrade::*;
+
+    let mut content = match &incorrect_hit.grade {
+        Early => "Too early!",
+        Late => "Too late!",
+    };
+    if song_metrics.just_broke_streak() {
+        content = "Streak broken!";
+    }
+        
+    set_feedback_text_content(content, time, query, FeedbackStyle::Failure);
+}
+
 
 
 /// Displays a message to the user when they missfire.
@@ -169,27 +210,18 @@ fn set_feedback_content_on_missfire(
     mut missfire_events: EventReader<MissfireEvent>,
 ) {
     // We read to the last missfire event, if there was one
-    let Some(missfire) = missfire_events.read().last() else {
+    let Some(_missfire) = missfire_events.read().last() else {
         // nothing to do
         return;
     };
+    log::info!("consumed missfire event");
 
-    let mut content = match &missfire.opt_hit {
-        Some((_, Grade::Early)) => {
-            "Too early!"
-        }
-        Some((_, Grade::Late)) => {
-            "Too late!"
-        },
-        _ => {
-            use rand::seq::SliceRandom;
-            let mut rng = rand::thread_rng();
-            ["Butter fingers", "Whoops", "Turn off sticky keys", "Try again", "Not that time!", "Oops!", "Missclicked"]
-                .choose(&mut rng)
-                .copied()
-                .expect("at least one option")
-        },
-    };
+    use rand::seq::SliceRandom;
+    let mut rng = rand::thread_rng();
+    let mut content = ["Butter fingers", "Whoops", "Turn off sticky keys", "Try again", "Not that time!", "Oops!", "Missclicked"]
+        .choose(&mut rng)
+        .copied()
+        .expect("at least one option");
 
     if song_metrics.just_broke_streak() {
         content = "Streak broken!";
@@ -292,13 +324,14 @@ impl Plugin for FeedbackTextPlugin {
 
             // We need to schedule these after the metrics update so that we can
             // get the latest information on the frame the events are published
-            .add_systems(Update, set_feedback_content_on_correct_hit
-                                    .after(metrics::update_metrics))
-            .add_systems(Update, set_feedback_content_on_missfire
-                                    .after(metrics::update_metrics))
-            .add_systems(Update, set_feedback_content_on_dropped_note
-                                    .after(metrics::update_metrics))// issue where this isn't
-                                                                    // working... :(
+            .add_systems(Update, (
+                        set_feedback_content_on_correct_hit,
+                        set_feedback_content_on_incorrect_hit,
+                        set_feedback_content_on_missfire,
+                        set_feedback_content_on_dropped_note,
+                    )
+                .after(metrics::update_metrics)
+            )
 
         ;
 
