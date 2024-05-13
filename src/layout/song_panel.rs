@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    Config
+    Config, CliArgs
 };
 
 use crate::lane::{
@@ -67,11 +67,13 @@ impl SongPanel {
                         commands: &'a mut Commands<'w, 's>,
                         asset_server: &'a AssetServer,
                         config: &'a Config,
+                        cli: &'a CliArgs,
     ) -> SongPanelSetupContext<'a, 'w, 's, T>
         where T: Component + Copy
     {
         SongPanelSetupContext {
             panel: self,
+            cli,
             marker,
             commands,
             asset_server,
@@ -87,6 +89,7 @@ pub struct SongPanelSetupContext<'a, 'w, 's, T> {
     pub commands: &'a mut Commands<'w, 's>,
     pub asset_server: &'a AssetServer,
     pub config: &'a Config,
+    pub cli: &'a CliArgs,
     // prevents users from exhaustively pattern matching
     _extra: (),
 }

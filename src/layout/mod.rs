@@ -20,19 +20,21 @@ pub use song_panel::{
 };
 
 use crate::{
-    Config
+    Config, CliArgs,
 };
 use crate::team_markers::{
-    PlayerMarker
+    PlayerMarker,
+    EnemyMarker,
 };
 
 fn setup_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     config: Res<Config>,
+    cli: Res<CliArgs>,
 ) {
     let bounds = crate::world();
-    let [player_bounds, _, _enemy_bounds] = bounds.split_horizontal([0.4, 0.2, 0.4]);
+    let [player_bounds, _, enemy_bounds] = bounds.split_horizontal([0.4, 0.2, 0.4]);
 
     // create the player song panel
     SongPanel::new(player_bounds)
@@ -40,17 +42,26 @@ fn setup_ui(
                &mut commands,
                asset_server.as_ref(),
                config.as_ref(),
+               cli.as_ref(),
         )
         // creates all the associated resources
+        .setup_arrow_spawner()
         .setup_lane_targets()
         .setup_feedback_text()
         .setup_lane_letters()
         .finish();
 
     // TODO: create the enemy song panel
-    // SongPanel::new(enemy_bounds);
-
-
+    SongPanel::new(enemy_bounds)
+        .build(EnemyMarker,
+               &mut commands,
+               asset_server.as_ref(),
+               config.as_ref(),
+               cli.as_ref(),
+        )
+        .setup_arrow_spawner()
+        .setup_lane_targets()
+        .finish();
 
 }
 

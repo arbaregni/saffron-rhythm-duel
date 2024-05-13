@@ -7,9 +7,14 @@ use anyhow::{
 };
 use bevy::prelude::*;
 
-use crate::CliArgs;
 use crate::lane::Lane;
-use crate::team_markers::PlayerMarker;
+use crate::team_markers::{
+    PlayerMarker,
+    EnemyMarker,
+    Team,
+    Marker,
+    EntityCommandsExt,
+};
 use crate::layout::{
     BBox,
     Layer,
@@ -23,11 +28,11 @@ pub use chart::{
 pub use spawner::{
     ArrowSpawner,
     SpawningMode,
+    ArrowBuf,
     Arrow,
 };
 pub use timer::{
     BeatTimer,
-    BeatTickEvent,
     FinishBehavior,
 };
 
@@ -35,17 +40,15 @@ fn world() -> BBox {
     crate::world()
 }
 
-fn setup(cli: Res<CliArgs>, mut commands: Commands) {
-    // set up the default, during the parsing of the cart we may overwrite this
-                                    
-
-    let seconds_per_beat; 
-    // =========================================================
-    //    ARROW SPAWNER
-    // =========================================================
-    {
+impl <'a, 'w, 's, T: Marker> crate::layout::SongPanelSetupContext<'a, 'w, 's, T> {
+    pub fn setup_arrow_spawner(mut self) -> Self {
+        // set up the default, during the parsing of the cart we may overwrite this
+        let seconds_per_beat; 
+        // =========================================================
+        //    ARROW SPAWNER
+        // =========================================================
         log::info!("Creating arrow spawner");
-        let mode = match cli.chart.as_ref() {
+        let mode = match self.cli.chart.as_ref() {
             Some(path) => {
                 use std::fs;
 
@@ -53,16 +56,16 @@ fn setup(cli: Res<CliArgs>, mut commands: Commands) {
                 // parse the chart
                 let text = fs::read_to_string(path)
                     .with_context(|| format!("Failed to read chart from path: {friendly_name}"))
-                    .unwrap();
+                        .unwrap();
 
-                let chart: Chart = serde_json::from_str(text.as_str())
-                    .with_context(|| format!("File at {friendly_name} could not be parsed as a chart"))
-                    .unwrap();
+                    let chart: Chart = serde_json::from_str(text.as_str())
+                        .with_context(|| format!("File at {friendly_name} could not be parsed as a chart"))
+                        .unwrap();
 
-                log::info!("Parsed chart '{}' from {}", chart.chart_name(), friendly_name);
+                    log::info!("Parsed chart '{}' from {}", chart.chart_name(), friendly_name);
 
-                SpawningMode::Chart(chart)
-            }
+                    SpawningMode::Chart(chart)
+                }
             None => {
                 log::info!("No chart specified, using random note generation");
                 SpawningMode::Random
@@ -75,117 +78,120 @@ fn setup(cli: Res<CliArgs>, mut commands: Commands) {
                 seconds_per_beat = chart.beat_duration_secs()
             }
             SpawningMode::Random => {
-                seconds_per_beat = cli.fallback_beat_duration;
+                seconds_per_beat = self.cli.fallback_beat_duration;
             }
         }
 
-        commands.insert_resource(ArrowSpawner {
-            mode,
-            arrow_buf: Vec::with_capacity(4),
-        });
-    }
-
-    // =========================================================
-    //    BEAT TIMER 
-    // =========================================================
-    {
-        log::info!("Creating beat timer");
-
-        let on_finish = cli.on_finish.clone();
+        let on_finish = self.cli.on_finish.clone();
 
         let duration = std::time::Duration::from_secs_f32(seconds_per_beat);
         let beat_timer = Timer::new(duration, TimerMode::Repeating);
 
-        commands.insert_resource(BeatTimer {
-            song_start: 3.0, // seconds
-            beat_count: 0,
-            beat_timer,
-            on_finish,
-        });
-    }
+        self.commands.spawn((
+            ArrowSpawner {
+                mode,
+                arrow_buf: Vec::with_capacity(4),
+                team: self.marker.as_team(),
+            },
+            BeatTimer {
+                song_start: 3.0, // seconds
+                beat_count: 0,
+                beat_timer,
+                on_finish,
+            },
+            ArrowBuf::new(),
+        ));
 
+
+        self
+    }
 }
 
 
 fn spawn_arrows(
     mut commands: Commands,
     time: Res<Time>,
-    mut spawner: ResMut<ArrowSpawner>,
-    mut beat_events: EventReader<BeatTickEvent>,
-    panel: Query<&SongPanel, With<PlayerMarker>>,
+    mut spawner_query: Query<(&ArrowSpawner, &mut BeatTimer, &mut ArrowBuf)>,
+    player_panel: Query<&SongPanel, With<PlayerMarker>>,
+    enemy_panel: Query<&SongPanel, With<EnemyMarker>>,
 ) {
     let now = time.elapsed().as_secs_f32();
 
-    let panel = panel.single();
+    let player_panel = player_panel.single();
+    let enemy_panel = enemy_panel.single();
 
     // ========================================
     //    create the arrows
     // ========================================
 
-    let ArrowSpawner { ref mode, ref mut arrow_buf, .. } = spawner.as_mut();
-    arrow_buf.clear();
+    for (spawner, mut beat_timer, mut arrow_buf) in spawner_query.iter_mut() {
 
-    beat_events.read()
-        .for_each(|ev| {
-            // TODO: make sure this doesn't try to spawn multiple rows at the same time
+        let Some(beat_tick) = beat_timer.tick(&time) else {
+            // the clock did not tick, no arrow yet.
+            // move on to the next spawner
+            continue;
+        };
+        let beat = beat_tick.beat();
 
-            let beat = ev.beat();
-
-            match mode {
-                SpawningMode::Chart(chart) => {
-                    let lead_time = chart.lead_time_secs();
-                    for note in chart.get(beat) {
-                        let lane = note.lane();
-                        let arrow = Arrow::new(lane, now, now + lead_time);
-                        arrow_buf.push(arrow);
-                    }
-                }
-                SpawningMode::Random => {
-                    let lane = Lane::random();
-                    let lead_time = 1.5; // seconds
+        arrow_buf.buf.clear();
+        match &spawner.mode {
+            SpawningMode::Chart(chart) => {
+                let lead_time = chart.lead_time_secs();
+                for note in chart.get(beat) {
+                    let lane = note.lane();
                     let arrow = Arrow::new(lane, now, now + lead_time);
-                    arrow_buf.push(arrow);
+                    arrow_buf.buf.push(arrow);
                 }
+            }
+            SpawningMode::Random => {
+                let lane = Lane::random();
+                let lead_time = 1.5; // seconds
+                let arrow = Arrow::new(lane, now, now + lead_time);
+                arrow_buf.buf.push(arrow);
+            }
 
-                SpawningMode::Recording(_) => {
-                    // nothing to do
-                }
-            };
-        });
+            SpawningMode::Recording(_) => {
+                // nothing to do
+            }
+        };
 
-    // =======================================
-    //   spawn the arrows
-    // =======================================
+        // =======================================
+        //   spawn the arrows
+        // =======================================
+        let panel = match spawner.team {
+            Team::Player => player_panel,
+            Team::Enemy => enemy_panel,
+        };
 
-    for arrow in spawner.arrow_buf.drain(..) {
+        for arrow in arrow_buf.buf.drain(..) {
 
-        let x = panel.lane_bounds(arrow.lane).center().x;
-        let y = panel.bounds().top();
-        let z = Layer::Arrows.z();
-        let pos = Vec3::new(x, y, z);
+            let x = panel.lane_bounds(arrow.lane).center().x;
+            let y = panel.bounds().top();
+            let z = Layer::Arrows.z();
+            let pos = Vec3::new(x, y, z);
 
-        let width = panel.lane_bounds(arrow.lane).width();
-        let height = Arrow::height();
-        let scale = Vec3::new(width, height, 1.0);
+            let width = panel.lane_bounds(arrow.lane).width();
+            let height = Arrow::height();
+            let scale = Vec3::new(width, height, 1.0);
 
-        commands
-            .spawn((
-                arrow,
-                PlayerMarker, // important! need this for proper querying
-                SpriteBundle {
-                    transform: Transform {
-                        translation: pos,
-                        scale,
-                        ..default()
-                    },
-                    sprite: Sprite {
-                        color: arrow.lane.colors().base,
-                        ..default()
-                    },
+            let color = arrow.lane.colors().base;
+
+            let sprite = SpriteBundle {
+                transform: Transform {
+                    translation: pos,
+                    scale,
                     ..default()
-                }
-            ));
-    }
+                },
+                sprite: Sprite {
+                    color,
+                    ..default()
+                },
+                ..default()
+            };
+            commands
+                .spawn((arrow, sprite))
+                .assign_team_marker(spawner.team);
+        }
 
     // =======================================
     //   check for end conditions
@@ -210,6 +216,7 @@ fn spawn_arrows(
     }
     */
                
+    }
 
 }
 
@@ -226,12 +233,7 @@ impl Plugin for ArrowsPlugin {
     fn build(&self, app: &mut App) {
         log::info!("building Arrow plugin...");
         app
-            .add_event::<timer::BeatTickEvent>()
-            .add_systems(Startup, setup)
-            .add_systems(Update, timer::check_for_beat)
-            .add_systems(Update, spawn_arrows
-                .after(timer::check_for_beat) // since the spawn_arrows system needs to ingest the BeatTickEvent
-            )
+            .add_systems(Update, spawn_arrows)
             .add_systems(Update, move_arrows)
         ;
     }

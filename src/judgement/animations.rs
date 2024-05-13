@@ -30,8 +30,8 @@ pub fn darken_on_press(
     mut commands: Commands,
     time: Res<Time>,
     mut input_events: EventReader<InputActionEvent>,
-    lane_targets: Query<(Entity, &LaneTarget)>,
-    lane_letters: Query<(Entity, &LaneLetter)>,
+    lane_targets: Query<(Entity, &LaneTarget), With<PlayerMarker>>,
+    lane_letters: Query<(Entity, &LaneLetter), With<PlayerMarker>>,
 ) {
     let now = time.elapsed().as_secs_f32();
 

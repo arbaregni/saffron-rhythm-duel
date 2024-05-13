@@ -13,13 +13,12 @@ pub enum FinishBehavior {
     Record,
 }
 
-#[derive(Event)]
-pub struct BeatTickEvent {
+pub struct BeatTick {
     /// The count of the beat we are on.
     beat: u32,
 }
 
-#[derive(Resource)]
+#[derive(Component)]
 pub struct BeatTimer {
     /// What we do when we reach the end of the chart (if we're using a chart)
     pub (in crate::arrow) on_finish: FinishBehavior,
@@ -33,7 +32,7 @@ pub struct BeatTimer {
 }
 
 
-impl BeatTickEvent {
+impl BeatTick {
     pub fn beat(&self) -> u32 {
         self.beat
     }
@@ -49,32 +48,28 @@ impl BeatTimer {
     pub fn beat_count(&self) -> u32 {
         self.beat_count
     }
+    pub fn tick(&mut self, time: &Time) -> Option<BeatTick> {
+        let now = time.elapsed().as_secs_f32();
 
+        if now < self.song_start() {
+            // not time to start the song yet
+            return None;
+        }
+
+        self.beat_timer.tick(time.delta());
+
+        if !self.beat_timer.just_finished() {
+            // not time for another beat just yet
+            return None;
+        }
+
+        let beat = self.beat_count();
+        self.beat_count += 1;
+
+        Some(BeatTick {
+            beat
+        })
+
+    }
 }
 
-
-pub fn check_for_beat(
-    time: Res<Time>,
-    mut beat_timer: ResMut<BeatTimer>,
-    mut events: EventWriter<BeatTickEvent>,
-)
-{
-    let now = time.elapsed().as_secs_f32();
-
-    if now < beat_timer.song_start() {
-        // not time to start the song yet
-        return;
-    }
-
-    beat_timer.beat_timer.tick(time.delta());
-    if !beat_timer.beat_timer.just_finished() {
-        // not time for another beat (set of arrows) yet, just return
-        return;
-    }
-    let beat = beat_timer.beat_count;
-    beat_timer.beat_count += 1;
-
-    events.send(BeatTickEvent {
-        beat
-    });
-}

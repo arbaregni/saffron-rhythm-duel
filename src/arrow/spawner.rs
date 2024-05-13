@@ -1,8 +1,12 @@
 use bevy::prelude::*;
 
 use crate::lane::Lane;
+use crate::team_markers::{
+    Team,
+};
 
 use super::chart::Chart;
+
 
 #[derive(Component, Debug, Copy, Clone)]
 pub struct Arrow {
@@ -32,13 +36,29 @@ impl ArrowStatus {
     }
 }
 
-#[derive(Resource)]
+#[derive(Component)]
 #[derive(Debug, Clone)]
 pub struct ArrowSpawner {
     /// How we will spawn the arrows
     pub (in crate::arrow) mode: SpawningMode,
     /// Scratch space for spawning the arrows
     pub (in crate::arrow) arrow_buf: Vec<Arrow>,
+    /// The team we are spawning for.
+    pub (in crate::arrow) team: Team,
+}
+
+#[derive(Component)]
+/// Component that holds scratch space for spawning arrows
+pub struct ArrowBuf {
+    pub buf: Vec<Arrow>
+}
+impl ArrowBuf {
+    pub fn new() -> Self {
+        Self {
+            // capacity for 4 arrows because we will have at most 1 per lane
+            buf: Vec::with_capacity(4)
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
