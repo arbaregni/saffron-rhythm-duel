@@ -7,6 +7,7 @@ mod layout;
 mod record;
 mod input;
 mod team_markers;
+mod remote;
 
 use std::path::PathBuf;
 

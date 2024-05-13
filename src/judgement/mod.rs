@@ -296,7 +296,7 @@ fn despawn_arrows(
             if arrow.status().is_pending() {
                 log::info!("emitting DroppedNoteEvent");
                 events.send(DroppedNoteEvent {
-                    arrow: *arrow
+                    arrow: arrow.clone(),
                 });
             }
 

@@ -134,26 +134,7 @@ fn spawn_arrows(
         let beat = beat_tick.beat();
 
         arrow_buf.buf.clear();
-        match &spawner.mode {
-            SpawningMode::Chart(chart) => {
-                let lead_time = chart.lead_time_secs();
-                for note in chart.get(beat) {
-                    let lane = note.lane();
-                    let arrow = Arrow::new(lane, now, now + lead_time);
-                    arrow_buf.buf.push(arrow);
-                }
-            }
-            SpawningMode::Random => {
-                let lane = Lane::random();
-                let lead_time = 1.5; // seconds
-                let arrow = Arrow::new(lane, now, now + lead_time);
-                arrow_buf.buf.push(arrow);
-            }
-
-            SpawningMode::Recording(_) => {
-                // nothing to do
-            }
-        };
+        spawner.create_arrows_in(&mut arrow_buf.buf, time.as_ref(), beat);
 
         // =======================================
         //   spawn the arrows
