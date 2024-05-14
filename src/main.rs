@@ -45,6 +45,9 @@ struct CliArgs {
     #[arg(short, long, default_value = "0.3")]
     fallback_beat_duration: f32,
 
+    #[arg(long)]
+    disable_remote_listener: bool,
+
     #[arg(short, long)]
     debug: bool,
 }

@@ -36,12 +36,15 @@ use crate::remote::{
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 struct LaneBoxMaterial {
+    /// The base color
     #[uniform(0)]
     color: Color,
+    /// The game time when we started animating
     #[uniform(1)]
-    created_at: f32,
+    start_time: f32, 
+    /// How long we plan to go for
     #[uniform(2)]
-    life_length: f32,
+    duration: f32,
 }
 
 impl Material2d for LaneBoxMaterial {
@@ -50,8 +53,8 @@ impl Material2d for LaneBoxMaterial {
     }
 }
 
-const LANE_BOX_MAX_TIME: f32 = 0.4;
-const LANE_BOX_INITIAL_ALPHA: f32 = 0.1;
+const LANE_BOX_MAX_TIME: f32 = 0.3;
+const LANE_BOX_INITIAL_ALPHA: f32 = 0.4;
 
 /// Short lived component that is created to indicate a key press
 #[derive(Component)]
@@ -87,8 +90,8 @@ impl LaneBox {
 
         let material = materials.add(LaneBoxMaterial {
             color,
-            created_at: now,
-            life_length: LANE_BOX_MAX_TIME,
+            start_time: now,
+            duration: LANE_BOX_MAX_TIME,
         });
 
         let lane_box = LaneBox {

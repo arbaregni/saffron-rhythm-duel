@@ -28,9 +28,14 @@ pub struct RemoteListener {
 
 fn setup(
     mut commands: Commands,
-    _cli: Res<CliArgs>,
+    cli: Res<CliArgs>,
 )
 {
+
+    if cli.disable_remote_listener {
+        return;
+    }
+
     commands.spawn(RemoteListener{
         timer: Timer::new(
            std::time::Duration::from_secs_f32(0.12),
