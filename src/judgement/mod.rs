@@ -1,13 +1,6 @@
 mod metrics;
 mod feedback_text;
-mod target_sparkles;
-mod animations;
-mod lane_widgets;
-pub use lane_widgets::{
-    LaneTarget,
-    LaneLetter,
-};
-
+mod sound_alerts;
 
 use bevy::prelude::*;
 
@@ -300,16 +293,11 @@ impl Plugin for JudgementPlugin {
             // Add the systems
             .add_systems(Update, judge_lane_hits)
             .add_systems(Update, despawn_arrows)
-            .add_systems(Update, animations::darken_on_press)
-            .add_systems(Update, animations::darken_over_time)
-            .add_systems(Update, animations::jostle_on_dropped_note)
-            .add_systems(Update, animations::animate_jostling)
-            .add_systems(Update, animations::play_sound_on_hit)
-            .add_systems(Update, animations::play_sound_on_dropped_note)
+            .add_systems(Update, sound_alerts::play_sound_on_hit)
+            .add_systems(Update, sound_alerts::play_sound_on_dropped_note)
             
             // Add the plugins
             .add_plugins(feedback_text::FeedbackTextPlugin)
-            .add_plugins(target_sparkles::TargetSparklesPlugin)
             .add_plugins(metrics::MetricsPlugin)
         ;
     }

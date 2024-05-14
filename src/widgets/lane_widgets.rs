@@ -244,7 +244,7 @@ pub fn jostle_on_dropped_note(
     for dropped_note in dropped_notes.read() {
         log::info!("consuming dropped note event");
 
-        let event_lane = dropped_note.arrow.lane();
+        let event_lane = dropped_note.arrow().lane();
 
         let x_extents = panel.lane_bounds(event_lane).width() / 6.0;
 

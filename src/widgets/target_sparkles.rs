@@ -25,7 +25,7 @@ use crate::layout::{
     SongPanel
 };
 
-use super::{
+use crate::judgement::{
     CorrectHitEvent,
 };
 
