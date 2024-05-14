@@ -39,6 +39,11 @@ pub struct CorrectHitEvent {
     /// The grade the judgment system gave
     pub grade: SuccessGrade,
 }
+impl CorrectHitEvent {
+    fn grade(&self) -> SuccessGrade {
+        self.grade
+    }
+}
 
 /// Represents when the user hits the lane, and there is a nearby note,
 /// But we don't want to count it as 'completing' that note.

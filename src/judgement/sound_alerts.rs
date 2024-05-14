@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use super::{
     DroppedNoteEvent,
     CorrectHitEvent,
+    SuccessGrade,
 };
 
 pub fn play_sound_on_hit(
@@ -12,10 +13,16 @@ pub fn play_sound_on_hit(
 ) {
 
     // TODO: should this really trigger an entity for every event?
-    for _ in hit_events.read() {
+    for ev in hit_events.read() {
+
+        let sound_name = match ev.grade() {
+            SuccessGrade::Perfect => "sounds/correct-2.ogg",
+            _ => "sounds/metronome-quartz.ogg",
+        };
+
         commands.spawn(
             AudioBundle {
-                source: asset_server.load("sounds/metronome-quartz.ogg").into(),
+                source: asset_server.load(sound_name).into(),
                 settings: PlaybackSettings {
                     mode: bevy::audio::PlaybackMode::Despawn,
                     ..default()
