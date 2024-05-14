@@ -15,13 +15,22 @@ use bevy::{
 };
 
 use crate::input::{
-    LaneHit
+    LaneHit,
 };
-use crate::team_markers::PlayerMarker;
-
+use crate::team_markers::{
+    PlayerMarker,
+    EnemyMarker,
+    Marker,
+};
+use crate::lane::{
+    Lane
+};
 use crate::layout::{
     SongPanel,
     Layer,
+};
+use crate::remote::{
+    RemoteLaneHit
 };
     
 
@@ -41,63 +50,119 @@ impl Material2d for LaneBoxMaterial {
     }
 }
 
-#[derive(Component)]
-struct LaneBox {
-    created_at: f32
-}
-
 const LANE_BOX_MAX_TIME: f32 = 0.4;
+const LANE_BOX_INITIAL_ALPHA: f32 = 0.1;
 
-fn create_lane_box_on_press(
-    mut commands: Commands,
-    mut input_events: EventReader<LaneHit>,
-    time: Res<Time>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<LaneBoxMaterial>>,
-    panel: Query<&SongPanel, With<PlayerMarker>>,
-) {
-    let now = time.elapsed().as_secs_f32();
+/// Short lived component that is created to indicate a key press
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+struct LaneBox {
+    created_at: f32,
+    duration: f32,
+}
+pub struct LaneBoxCreationArgs<'a, 'w, 's, T> {
+    commands: &'a mut Commands<'w, 's>,
+    time: &'a Time,
+    meshes: &'a mut Assets<Mesh>,
+    materials: &'a mut Assets<LaneBoxMaterial>,
+    lane: Lane,
+    panel: &'a SongPanel,
+    marker: T,
+}
+impl LaneBox {
+    pub fn create<'a, 'w, 's, T: Component + Marker>(args: LaneBoxCreationArgs<'a, 'w, 's, T>) {
+        let LaneBoxCreationArgs {
+            commands, time, meshes, materials, lane, panel, marker
+        } = args;
 
-    let panel = panel.single();
-
-    let initial_alpha = 0.1;
-
-    for ev in input_events.read() {
-        let lane = ev.lane();
+        let now = time.elapsed().as_secs_f32();
 
         let mut pos = panel.lane_bounds(lane).center();
         pos.z = Layer::SongEffects.z();
 
-        let color = lane.colors().light.with_a(initial_alpha);
+        let color = lane.colors().light.with_a(LANE_BOX_INITIAL_ALPHA);
 
         let rect = panel.lane_bounds(lane).to_rectangle();
         let mesh = Mesh2dHandle(meshes.add(rect));
 
-        let created_at = now;
-
         let material = materials.add(LaneBoxMaterial {
             color,
-            created_at,
+            created_at: now,
             life_length: LANE_BOX_MAX_TIME,
         });
 
-        log::info!("key press detected, creating lane box...");
-        commands.spawn((
-            LaneBox {
-                created_at: now,
-            },
-            MaterialMesh2dBundle {
-                mesh,
-                transform: Transform {
-                    translation: pos,
-                    ..default()
-                },
-                material,
+        let lane_box = LaneBox {
+            created_at: now,
+            duration: LANE_BOX_MAX_TIME,
+        };
+
+        let mesh_bundle = MaterialMesh2dBundle {
+            mesh,
+            transform: Transform {
+                translation: pos,
                 ..default()
-            }));
+            },
+            material,
+            ..default()
+        };
+
+        commands.spawn((
+            lane_box,
+            mesh_bundle,
+            marker,
+        ));
+
     }
 }
 
+fn create_lane_box_on_press(
+    // needed to spawn lane box
+    mut commands: Commands,
+    time: Res<Time>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<LaneBoxMaterial>>,
+
+    // needed to spawn inside a panel
+    player_panel: Query<&SongPanel, With<PlayerMarker>>,
+    enemy_panel: Query<&SongPanel, With<EnemyMarker>>,
+
+    // listen for the triggers
+    mut input_events: EventReader<LaneHit>,
+    mut remote_input_events: EventReader<RemoteLaneHit>,
+) {
+    let player_panel = player_panel.single();
+    let enemy_panel = enemy_panel.single();
+
+    for ev in input_events.read() {
+        let lane = ev.lane();
+
+        log::info!("key press detected, creating lane box...");
+        LaneBox::create(LaneBoxCreationArgs {
+            commands: &mut commands,
+            time: time.as_ref(),
+            meshes: meshes.as_mut(),
+            materials: materials.as_mut(),
+            lane,
+            panel: player_panel,
+            marker: PlayerMarker
+        });
+
+    }
+
+    for ev in remote_input_events.read() {
+        let lane = ev.lane();
+        LaneBox::create(LaneBoxCreationArgs {
+            commands: &mut commands,
+            time: time.as_ref(),
+            meshes: meshes.as_mut(),
+            materials: materials.as_mut(),
+            lane,
+            panel: enemy_panel,
+            marker: EnemyMarker
+        });
+
+    }
+}
 
 fn animate_lane_boxes(
     mut commands: Commands,

@@ -149,7 +149,6 @@ impl JudgementSettings {
 ///   -> IncorrectHitEvent
 ///   -> MissfireEvent
 fn judge_lane_hits(
-    time: Res<Time>,
     mut input_events: EventReader<LaneHit>,
     mut query: Query<(&mut Arrow, &mut Sprite)>,
     mut correct_arrow_events: EventWriter<CorrectHitEvent>,

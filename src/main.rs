@@ -150,6 +150,7 @@ fn main() -> Result<()> {
         .add_plugins(judgement::JudgementPlugin)
         .add_plugins(layout::UiPlugin)
         .add_plugins(input::InputPlugin)
+        .add_plugins(remote::RemoteUserPlugin)
         .add_plugins(widgets::WidgetsPlugin)
 
         // Systems
