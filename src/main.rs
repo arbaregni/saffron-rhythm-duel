@@ -8,6 +8,7 @@ mod record;
 mod input;
 mod team_markers;
 mod remote;
+mod widgets;
 
 use std::path::PathBuf;
 
@@ -138,9 +139,10 @@ fn main() -> Result<()> {
         )
         .insert_resource(ClearColor(BACKGROUND_COLOR))
         .add_plugins(arrow::ArrowsPlugin)
-        .add_plugins(judgement::TargetsPlugin)
+        .add_plugins(judgement::JudgementPlugin)
         .add_plugins(layout::UiPlugin)
         .add_plugins(input::InputPlugin)
+        .add_plugins(widgets::WidgetsPlugin)
         .add_systems(Update, close_on_esc)
         .run();
     Ok(())
@@ -161,12 +163,23 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 
-fn close_on_esc(_commands: Commands,
-                mut app_exit_events: ResMut<Events<bevy::app::AppExit>>,
-                input: Res<ButtonInput<KeyCode>>) 
-{
+fn close_on_esc(
+    mut app_exit_events: ResMut<Events<bevy::app::AppExit>>,
+    input: Res<ButtonInput<KeyCode>>
+) {
     if input.just_pressed(KeyCode::Escape) {
         log::info!("exitting");
         app_exit_events.send(bevy::app::AppExit);
     }
+}
+
+fn close_on_window_close_requested(
+    mut close_requested: EventReader<bevy::window::WindowCloseRequested>,
+    mut app_exit_events: ResMut<Events<bevy::app::AppExit>>,
+) {
+    if close_requested.is_empty() {
+        return;
+    }
+    close_requested.clear();
+    app_exit_events.send(bevy::app::AppExit);
 }

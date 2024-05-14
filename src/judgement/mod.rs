@@ -1,5 +1,4 @@
 mod metrics;
-mod lane_box;
 mod feedback_text;
 mod target_sparkles;
 mod animations;
@@ -16,9 +15,6 @@ use crate::team_markers::{
     PlayerMarker
 };
 
-use crate::lane::{
-    Lane,
-};
 use crate::arrow::{
     Arrow,
 };
@@ -161,9 +157,6 @@ fn judge_lane_hits(
     mut missfire_events: EventWriter<MissfireEvent>,
     judgement: Res<JudgementSettings>,
 ) {
-
-    let now = time.elapsed().as_secs_f32();
-
     for lane_hit in input_events.read() {
                
         // ---------------------------------------------- 
@@ -293,10 +286,10 @@ fn despawn_arrows(
 }
 
 
-pub struct TargetsPlugin;
-impl Plugin for TargetsPlugin {
+pub struct JudgementPlugin;
+impl Plugin for JudgementPlugin {
     fn build(&self, app: &mut App) {
-        log::info!("building Targets plugin...");
+        log::info!("building Judgement plugin...");
         app
             .add_event::<CorrectHitEvent>()
             .add_event::<IncorrectHitEvent>()
@@ -316,7 +309,6 @@ impl Plugin for TargetsPlugin {
             .add_systems(Update, animations::play_sound_on_dropped_note)
             
             // Add the plugins
-            .add_plugins(lane_box::LaneBoxPlugin)
             .add_plugins(feedback_text::FeedbackTextPlugin)
             .add_plugins(target_sparkles::TargetSparklesPlugin)
             .add_plugins(metrics::MetricsPlugin)
