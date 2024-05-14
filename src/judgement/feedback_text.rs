@@ -178,7 +178,7 @@ fn set_feedback_content_on_correct_hit(
 /// Display a message to the user when they hit a note correctly.
 fn set_feedback_content_on_incorrect_hit(
     time: Res<Time>,
-    song_metrics: Res<SongMetrics>,
+    _song_metrics: Res<SongMetrics>,
     query: Query<(&mut Text, &mut FeedbackText)>,
     mut incorrect_events: EventReader<IncorrectHitEvent>,
 ) {

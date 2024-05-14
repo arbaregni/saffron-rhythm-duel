@@ -7,7 +7,6 @@ use anyhow::{
 };
 use bevy::prelude::*;
 
-use crate::lane::Lane;
 use crate::team_markers::{
     PlayerMarker,
     EnemyMarker,
@@ -41,7 +40,7 @@ fn world() -> BBox {
 }
 
 impl <'a, 'w, 's, T: Marker> crate::layout::SongPanelSetupContext<'a, 'w, 's, T> {
-    pub fn setup_arrow_spawner(mut self) -> Self {
+    pub fn setup_arrow_spawner(self) -> Self {
         // set up the default, during the parsing of the cart we may overwrite this
         let seconds_per_beat; 
         // =========================================================
@@ -115,8 +114,6 @@ fn spawn_arrows(
     player_panel: Query<&SongPanel, With<PlayerMarker>>,
     enemy_panel: Query<&SongPanel, With<EnemyMarker>>,
 ) {
-    let now = time.elapsed().as_secs_f32();
-
     let player_panel = player_panel.single();
     let enemy_panel = enemy_panel.single();
 

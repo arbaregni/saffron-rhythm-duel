@@ -1,141 +1,19 @@
 use bevy::prelude::*;
 
-use crate::lane::{
-    Lane,
-};
+use crate::input::LaneHit;
+
+use crate::team_markers::PlayerMarker;
+
 use crate::layout::{
-    Layer,
     SongPanel,
-    SongPanelSetupContext,
 };
-use crate::input::{
-    LaneHit
-};
-use crate::team_markers::{
-    PlayerMarker
-};
+
 use crate::judgement::{
-    DroppedNoteEvent
+    DroppedNoteEvent,
+    CorrectHitEvent,
+    LaneTarget,
+    LaneLetter,
 };
-
-#[derive(Component)]
-pub struct LaneTarget {
-    pub lane: Lane,
-}
-impl LaneTarget {
-    pub fn lane(&self) -> Lane {
-        self.lane
-    }
-}
-
-#[derive(Component)]
-pub struct LaneLetter {
-    pub lane: Lane
-}
-impl LaneLetter {
-    pub fn alpha() -> f32 {
-        0.3 // default alpha for the lane letter
-    }
-}
-
-
-impl <'a, 'w, 's, T> SongPanelSetupContext<'a, 'w, 's, T>
-where T: Component + Copy
-{
-    /// Creates the targets on the bottom and attaches the appropriate marker
-    pub fn setup_lane_targets(self) -> Self {
-
-        for (lane, bounds) in self.panel.lanes().iter() {
-            let lane_target = LaneTarget {
-                lane
-            };
-
-            let x = bounds.center().x;
-            let y = self.panel.target_line_y();
-            let z = Layer::Targets.z();
-            let pos = Vec3::new(x, y, z);
-
-            let width = bounds.width();
-            let height = self.panel.target_height();
-            let scale = Vec3::new(width, height, 1.0);
-
-            let transform = Transform {
-                translation: pos,
-                scale,
-                ..default()
-            };
-
-            let color = lane.colors().light;
-            let sprite = Sprite {
-                color,
-                ..default()
-            };
-
-            self.commands
-                .spawn((
-                    self.marker,
-                    lane_target,
-                    SpriteBundle {
-                        transform,
-                        sprite,
-                        ..default()
-                    }
-                ));
-
-        }
-
-        self
-    }
-
-    /// Creates the letters on the bottom and attaches the appropriate marker
-    pub fn setup_lane_letters(self) -> Self {
-        for (lane, bounds) in self.panel.lanes().iter() {
-
-            let text_content = self.config.keybindings.key_name(lane).to_uppercase();
-
-            let font = self.asset_server.load(crate::BASE_FONT_NAME);
-            let font_size = 50.0;
-            let color = lane.colors().light.with_a(LaneLetter::alpha());
-            
-            let x = bounds.center().x;
-            let y = self.panel.target_line_y() + self.panel.lane_letter_height();
-            let z = Layer::AboveTargets.z();
-
-            let transform = Transform {
-                translation: Vec3::new(x, y, z),
-                ..default()
-            };
-
-            let style = TextStyle { font, font_size, color };
-            let text = Text {
-                sections: vec![
-                    TextSection {
-                        value: text_content,
-                        style,
-                    }
-                ],
-                ..default()
-            };
-
-            self.commands.spawn((
-                self.marker,
-                LaneLetter {
-                    lane
-                },
-                Text2dBundle {
-                    text,
-                    transform,
-                    ..default()
-                }
-            ));
-            
-        }
-             
-        self
-    }
-
-
-}
 
 const DARKENED_DURATION: f32 = 0.25;
 
@@ -151,13 +29,14 @@ pub struct DarkeningEffect {
 pub fn darken_on_press(
     mut commands: Commands,
     time: Res<Time>,
-    mut lane_hits: EventReader<LaneHit>,
+    mut input_events: EventReader<LaneHit>,
     lane_targets: Query<(Entity, &LaneTarget), With<PlayerMarker>>,
     lane_letters: Query<(Entity, &LaneLetter), With<PlayerMarker>>,
 ) {
     let now = time.elapsed().as_secs_f32();
 
-    for lane_hit in lane_hits.read() {
+    for lane_hit in input_events.read() {
+        
         let event_lane = lane_hit.lane();
 
         // get the lane targets
@@ -230,7 +109,7 @@ pub struct JostlingEffect {
     pos: Vec3,
     extents: Vec3,
 }
-pub fn jostle_on_dropped_note(
+fn jostle_on_dropped_note(
     time: Res<Time>,
     mut commands: Commands,
     query: Query<(Entity, &LaneLetter, &Transform)>,
@@ -244,7 +123,7 @@ pub fn jostle_on_dropped_note(
     for dropped_note in dropped_notes.read() {
         log::info!("consuming dropped note event");
 
-        let event_lane = dropped_note.arrow.lane();
+        let event_lane = dropped_note.arrow().lane();
 
         let x_extents = panel.lane_bounds(event_lane).width() / 6.0;
 
@@ -264,7 +143,7 @@ pub fn jostle_on_dropped_note(
 
     }
 }
-pub fn animate_jostling(
+fn animate_jostling(
     time: Res<Time>,
     mut commands: Commands,
     mut query: Query<(Entity, &JostlingEffect, &mut Transform)>,
@@ -296,3 +175,54 @@ pub fn animate_jostling(
 
 }
 
+pub fn play_sound_on_hit(
+    mut commands: Commands,
+    mut hit_events: EventReader<CorrectHitEvent>,
+    asset_server: Res<AssetServer>,
+) {
+
+    // TODO: should this really trigger an entity for every event?
+    for _ in hit_events.read() {
+        commands.spawn(
+            AudioBundle {
+                source: asset_server.load("sounds/metronome-quartz.ogg").into(),
+                settings: PlaybackSettings {
+                    mode: bevy::audio::PlaybackMode::Despawn,
+                    ..default()
+                }
+            }
+        );
+    }
+}
+
+pub fn play_sound_on_dropped_note(
+    mut commands: Commands,
+    mut drop_events: EventReader<DroppedNoteEvent>,
+    asset_server: Res<AssetServer>,
+) {
+    if drop_events.is_empty() {
+        return;
+    }
+    drop_events.clear();
+    commands.spawn(
+            AudioBundle {
+                source: asset_server.load("sounds/blocky-land-wood-3.ogg").into(),
+                settings: PlaybackSettings {
+                    mode: bevy::audio::PlaybackMode::Despawn,
+                    ..default()
+                }
+            }
+        );
+}
+
+pub struct AnimationPlugin;
+impl Plugin for AnimationPlugin {
+    fn build(&self, app: &mut App) {
+        log::info!("Building animation plugin");
+        app
+            .add_systems(Update, animate_jostling)
+            .add_systems(Update, darken_over_time)
+        ;
+    }
+}
+        

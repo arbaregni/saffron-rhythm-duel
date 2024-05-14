@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::input::InputActionEvent;
+use crate::input::{
+    LaneHit
+};
 
 use crate::team_markers::PlayerMarker;
 
@@ -29,19 +31,19 @@ pub struct DarkeningEffect {
 pub fn darken_on_press(
     mut commands: Commands,
     time: Res<Time>,
-    mut input_events: EventReader<InputActionEvent>,
+    mut input_events: EventReader<LaneHit>,
     lane_targets: Query<(Entity, &LaneTarget), With<PlayerMarker>>,
     lane_letters: Query<(Entity, &LaneLetter), With<PlayerMarker>>,
 ) {
     let now = time.elapsed().as_secs_f32();
 
-    for input_action in input_events.read() {
-        let InputActionEvent::LaneHit(event_lane) = input_action; // only input action type for now
-                                                                  // we would ignore the others
+    for lane_hit in input_events.read() {
+        let event_lane = lane_hit.lane();
+        
         // get the lane targets
         lane_targets
             .iter()
-            .filter(|(_, lane_target)| lane_target.lane == *event_lane)
+            .filter(|(_, lane_target)| lane_target.lane == event_lane)
             .for_each(|(entity, _)| {
                 commands.entity(entity)
                       .insert(DarkeningEffect {
@@ -54,7 +56,7 @@ pub fn darken_on_press(
         // get the lane letters
         lane_letters
             .iter()
-            .filter(|(_, lane_letter)| lane_letter.lane == *event_lane)
+            .filter(|(_, lane_letter)| lane_letter.lane == event_lane)
             .for_each(|(entity, _)| {
                 commands.entity(entity)
                         .insert(DarkeningEffect {

@@ -14,7 +14,9 @@ use bevy::{
     },
 };
 
-use crate::input::InputActionEvent;
+use crate::input::{
+    LaneHit
+};
 use crate::team_markers::PlayerMarker;
 
 use crate::layout::{
@@ -48,7 +50,7 @@ const LANE_BOX_MAX_TIME: f32 = 0.4;
 
 fn create_lane_box_on_press(
     mut commands: Commands,
-    mut input_events: EventReader<InputActionEvent>,
+    mut input_events: EventReader<LaneHit>,
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<LaneBoxMaterial>>,
@@ -61,14 +63,14 @@ fn create_lane_box_on_press(
     let initial_alpha = 0.1;
 
     for ev in input_events.read() {
-        let InputActionEvent::LaneHit(lane) = ev; // only type of input action for now
+        let lane = ev.lane();
 
-        let mut pos = panel.lane_bounds(*lane).center();
+        let mut pos = panel.lane_bounds(lane).center();
         pos.z = Layer::SongEffects.z();
 
         let color = lane.colors().light.with_a(initial_alpha);
 
-        let rect = panel.lane_bounds(*lane).to_rectangle();
+        let rect = panel.lane_bounds(lane).to_rectangle();
         let mesh = Mesh2dHandle(meshes.add(rect));
 
         let created_at = now;

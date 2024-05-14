@@ -26,7 +26,9 @@ use crate::layout::{
     SongPanel,
     BBox,
 };
-use crate::input::InputActionEvent;
+use crate::input::{
+    LaneHit
+};
 
 pub use metrics::{
     SongMetrics
@@ -37,16 +39,7 @@ fn world() -> BBox {
 }
 
 pub const KEYPRESS_TOLERANCE_SECS: f32 = 0.5; // in seconds
-
-/// Represents an attempt from the user to hit a lane.
-#[derive(Debug,Clone)]
-pub struct LaneHit {
-    /// Which lane it happened in
-    pub lane: Lane,
-    /// When the hit occured (game time)
-    pub time_of_hit: f32,
-}
-
+                                              
 /// Represents when the user hits the lane when an arrow is passing the target line, and it
 /// completes that arrow.
 #[derive(Event)]
@@ -128,7 +121,7 @@ impl JudgementSettings {
         }
     }
     pub fn judge(&self, lane_hit: &LaneHit, arrow: &Arrow) -> Grade {
-        let hit_time = lane_hit.time_of_hit;
+        let hit_time = lane_hit.time_of_hit();
         let arrival_time = arrow.arrival_time();
 
         let diff = (arrival_time - hit_time).abs();
@@ -161,7 +154,7 @@ impl JudgementSettings {
 ///   -> MissfireEvent
 fn judge_lane_hits(
     time: Res<Time>,
-    mut input_events: EventReader<InputActionEvent>,
+    mut input_events: EventReader<LaneHit>,
     mut query: Query<(&mut Arrow, &mut Sprite)>,
     mut correct_arrow_events: EventWriter<CorrectHitEvent>,
     mut incorrect_arrow_events: EventWriter<IncorrectHitEvent>,
@@ -171,14 +164,8 @@ fn judge_lane_hits(
 
     let now = time.elapsed().as_secs_f32();
 
-    for input_action in input_events.read() {
-        let InputActionEvent::LaneHit(event_lane) = input_action; // only input action type for now
-                                                                
-        let lane_hit = LaneHit {
-            lane: *event_lane,
-            time_of_hit: now
-        };
-
+    for lane_hit in input_events.read() {
+               
         // ---------------------------------------------- 
         // Find the arrow with the closest arrival time 
         // ---------------------------------------------- 
@@ -191,11 +178,11 @@ fn judge_lane_hits(
             .filter(|(arrow, _)| arrow.status().is_pending())
             
             // only consider arrows in the lane that was hit
-            .filter(|(arrow, _)| arrow.lane() == lane_hit.lane)
+            .filter(|(arrow, _)| arrow.lane() == lane_hit.lane())
 
             // Get the absolute arrival time of each
             .map(|(arrow, sprite)| {
-                let delta_time = arrow.arrival_time() - lane_hit.time_of_hit;
+                let delta_time = arrow.arrival_time() - lane_hit.time_of_hit();
                 let time_diff = delta_time.abs();
                 (arrow, sprite, time_diff)
             })
@@ -218,7 +205,7 @@ fn judge_lane_hits(
         let Some((mut arrow, mut sprite, _time_diff)) = search_result else {
             log::info!("No arrow found, sending a missfire event");
             missfire_events.send(MissfireEvent {
-                lane_hit
+                lane_hit: lane_hit.clone()
             });
             continue;
         };
@@ -239,17 +226,17 @@ fn judge_lane_hits(
 
                 log::info!("marking arrow as completed");
                 arrow.mark_completed();
-                sprite.color = lane_hit.lane.colors().greyed;
+                sprite.color = lane_hit.lane().colors().greyed;
                 log::info!("sending correct hit event");
                 correct_arrow_events.send(CorrectHitEvent {
-                    lane_hit,
+                    lane_hit: lane_hit.clone(),
                     grade,
                 });
             }
             Grade::Fail(grade) => {
                 log::info!("sending incorrect hit event");
                 incorrect_arrow_events.send(IncorrectHitEvent {
-                    lane_hit,
+                    lane_hit: lane_hit.clone(),
                     grade,
                 });
                 

@@ -6,21 +6,34 @@ use crate::{
     Config,
     KeyBindings
 };
-use crate::lane::Lane;
+use crate::lane::{
+    Lane,
+    LaneMap,
+};
 
+/// Represents a user attempting to complete the note in a lane.
 #[derive(Event)]
-pub enum InputActionEvent {
-    LaneHit(Lane)
+#[derive(Debug,Clone)]
+pub struct LaneHit {
+    /// Lane that was hit
+    lane: Lane,
+    /// When the key was pressed
+    time_of_hit: f32,
+}
+impl LaneHit {
+    pub fn lane(&self) -> Lane {
+        self.lane
+    }
+    pub fn time_of_hit(&self) -> f32 {
+        self.time_of_hit
+    }
 }
 
 #[derive(Resource)]
 #[allow(non_snake_case)]
 pub struct InputManager {
     /// Keybindings
-    lane_hit_L1: KeyCode,
-    lane_hit_L2: KeyCode,
-    lane_hit_R1: KeyCode,
-    lane_hit_R2: KeyCode,
+    lane_hit_keycodes: LaneMap<KeyCode>,
 }
 
 #[allow(non_snake_case)]
@@ -34,38 +47,39 @@ fn setup_input_manager(mut commands: Commands, config: Res<Config>) {
     } = &config.keybindings;
 
     
-    let lane_hit_L1 = to_keycode(lane_hit_L1);
-    let lane_hit_L2 = to_keycode(lane_hit_L2);
-    let lane_hit_R1 = to_keycode(lane_hit_R1);
-    let lane_hit_R2 = to_keycode(lane_hit_R2);
+    let lane_hit_keycodes = LaneMap::from([
+        to_keycode(lane_hit_L1),
+        to_keycode(lane_hit_L2),
+        to_keycode(lane_hit_R1),
+        to_keycode(lane_hit_R2),
+    ]);
 
     commands.insert_resource(InputManager {
-        lane_hit_L1,
-        lane_hit_L2,
-        lane_hit_R1,
-        lane_hit_R2,
+        lane_hit_keycodes
     });
 }
 
-fn listen_for_input(input: Res<InputManager>, mut events: EventWriter<InputActionEvent>, keys: Res<ButtonInput<KeyCode>>) {
+fn listen_for_input(
+    time: Res<Time>,
+    input_mgr: Res<InputManager>,
+    keys: Res<ButtonInput<KeyCode>>,
+    mut events: EventWriter<LaneHit>
+) {
+    let now = time.elapsed().as_secs_f32();
 
-    if keys.just_pressed(input.lane_hit_L1) {
-        events.send(InputActionEvent::LaneHit(Lane::L1));
-    }
-
-    if keys.just_pressed(input.lane_hit_L2) {
-        events.send(InputActionEvent::LaneHit(Lane::L2));
-    }
-
-    if keys.just_pressed(input.lane_hit_R1) {
-        events.send(InputActionEvent::LaneHit(Lane::R1));
-    }
-
-    if keys.just_pressed(input.lane_hit_R2) {
-        events.send(InputActionEvent::LaneHit(Lane::R2));
-    }
-
-
+    input_mgr
+        .lane_hit_keycodes
+        .iter()
+        .filter(|(_lane, &keycode)| keys.just_pressed(keycode))
+        .map(|(lane, _keycode)| LaneHit {
+            lane,
+            time_of_hit: now
+        })
+        .for_each(|ev| {
+            log::info!("Sending lane hit event");
+            events.send(ev);
+        });
+    
 }
 
 fn to_keycode(name: &str) -> KeyCode {
@@ -276,7 +290,7 @@ impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
         log::info!("Building Input plugin");
         app
-            .add_event::<InputActionEvent>()
+            .add_event::<LaneHit>()
             .add_systems(Startup, setup_input_manager)
             .add_systems(PreUpdate, listen_for_input) // important that input happens the frame it's detected
         ;

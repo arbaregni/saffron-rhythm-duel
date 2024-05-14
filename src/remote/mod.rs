@@ -2,12 +2,11 @@ use bevy::prelude::*;
 
 use crate::{
     CliArgs,
-    Config
 };
 
 fn setup(
-    mut commands: Commands,
-    cli: Res<CliArgs>,
+    mut _commands: Commands,
+    _cli: Res<CliArgs>,
 )
 {
 
