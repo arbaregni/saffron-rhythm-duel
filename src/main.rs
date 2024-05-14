@@ -13,10 +13,7 @@ mod widgets;
 use std::path::PathBuf;
 
 use anyhow::{Result, Context};
-use bevy::{
-    prelude::*,
-    window::WindowTheme,
-};
+use bevy::prelude::*;
 use clap::{
     Parser,
 };
@@ -81,6 +78,22 @@ impl KeyBindings {
 
 const BASE_FONT_NAME: &str = "fonts/FiraSans-Bold.ttf";
 
+fn make_window_plugin() -> bevy::window::WindowPlugin {
+    use bevy::window::*;
+
+    let primary_window = Window {
+        title: "Saffron Rhythm Duel".to_string(),
+        resolution: (world().width(), world().height()).into(),
+        window_theme: Some(WindowTheme::Dark),
+        ..default()
+    };
+    WindowPlugin {
+        primary_window: Some(primary_window),
+        exit_condition: ExitCondition::OnPrimaryClosed,
+        close_when_requested: false,
+    }
+}
+
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
 
@@ -122,28 +135,27 @@ fn main() -> Result<()> {
     log::info!("Initializing...");
 
     App::new()
+        // Load resources
         .insert_resource(cli)
         .insert_resource(config)
-        .add_systems(Startup, setup)
+        .insert_resource(ClearColor(BACKGROUND_COLOR))
+
+        // Configure default plugins
         .add_plugins(DefaultPlugins
-            .set(WindowPlugin {
-                    primary_window: Some(Window {
-                        title: "Bevy Rhythm Tutorial".to_string(),
-                        resolution: (world().width(), world().height()).into(),
-                        window_theme: Some(WindowTheme::Dark),
-                        ..default()
-                    }),
-                    ..default()
-            })
+            .set(make_window_plugin())
             //.disable::<bevy::log::LogPlugin>()
         )
-        .insert_resource(ClearColor(BACKGROUND_COLOR))
+        // Load custom plugins
         .add_plugins(arrow::ArrowsPlugin)
         .add_plugins(judgement::JudgementPlugin)
         .add_plugins(layout::UiPlugin)
         .add_plugins(input::InputPlugin)
         .add_plugins(widgets::WidgetsPlugin)
+
+        // Systems
+        .add_systems(Startup, setup)
         .add_systems(Update, close_on_esc)
+        .add_systems(Update, close_on_window_close_requested)
         .run();
     Ok(())
 }
@@ -164,22 +176,26 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 
 fn close_on_esc(
-    mut app_exit_events: ResMut<Events<bevy::app::AppExit>>,
-    input: Res<ButtonInput<KeyCode>>
+    input: Res<ButtonInput<KeyCode>>,
+    mut app_exit: ResMut<Events<bevy::app::AppExit>>,
 ) {
     if input.just_pressed(KeyCode::Escape) {
-        log::info!("exitting");
-        app_exit_events.send(bevy::app::AppExit);
+        teardown(app_exit.as_mut());
     }
 }
 
 fn close_on_window_close_requested(
     mut close_requested: EventReader<bevy::window::WindowCloseRequested>,
-    mut app_exit_events: ResMut<Events<bevy::app::AppExit>>,
+    mut app_exit: ResMut<Events<bevy::app::AppExit>>,
 ) {
     if close_requested.is_empty() {
         return;
     }
     close_requested.clear();
+    teardown(app_exit.as_mut());
+}
+
+fn teardown(app_exit_events: &mut Events<bevy::app::AppExit>) {
+    log::info!("tearing down - sending app exit event");
     app_exit_events.send(bevy::app::AppExit);
 }
