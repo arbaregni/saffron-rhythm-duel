@@ -11,6 +11,7 @@ mod remote;
 mod widgets;
 
 use std::path::PathBuf;
+use std::net::SocketAddr;
 
 use anyhow::{Result, Context};
 use bevy::prelude::*;
@@ -44,6 +45,9 @@ struct CliArgs {
 
     #[arg(short, long, default_value = "0.3")]
     fallback_beat_duration: f32,
+
+    #[arg(long)]
+    connect_to: SocketAddr,
 
     #[arg(long)]
     disable_remote_listener: bool,
@@ -100,34 +104,15 @@ fn make_window_plugin() -> bevy::window::WindowPlugin {
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
 
-    //pretty_env_logger::init();
-    /*
-    env_logger::builder()
-        .format(|f, record| {
-            use std::io::Write;
-            use log::Level::*;
-
-            let target = record.target();
-
-            let level = match record.level() {
-                Trace => "TRACE",
-                Debug => "DEBUG",
-                Info  => "INFO",
-                Warn  => "WARN",
-                Error => "ERROR",
-            };
-
-            let module = record.module_path().unwrap_or("");
-
-            let time = f.timestamp_millis();
-
-            writeln!(f, " {time} {level} {target} {module} > {}", record.args(),)?;
-
-            Ok(())
-        })
+    // configure the logging
+    bevy::log::tracing_subscriber::fmt()
+        .compact()
+        .with_file(true)
+        .with_level(true)
+        .with_thread_names(true)
         .try_init()
-        .expect("failed to initialize logger");
-        */
+        .expect("unable to initialize tracing subscriber");
+
 
 
     log::info!("Reading config file...");
@@ -135,7 +120,7 @@ fn main() -> Result<()> {
         .with_context(|| format!("Parsing config file"))?;
     let config: Config = toml::from_str(config_str.as_ref())?;
 
-    log::info!("Initializing...");
+    log::info!("Initializing app...");
 
     App::new()
         // Load resources
@@ -146,7 +131,7 @@ fn main() -> Result<()> {
         // Configure default plugins
         .add_plugins(DefaultPlugins
             .set(make_window_plugin())
-            //.disable::<bevy::log::LogPlugin>()
+            .disable::<bevy::log::LogPlugin>()
         )
         // Load custom plugins
         .add_plugins(arrow::ArrowsPlugin)

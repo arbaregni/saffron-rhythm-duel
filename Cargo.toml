@@ -10,13 +10,18 @@ anyhow = { version = "1.0.81", features = ["backtrace"] }
 bevy = { version = "0.13.1", features = ["dynamic_linking", "shader_format_glsl"] }
 clap = { version = "4.5.4", features = ["derive"] }
 env_logger = "0.11.3"
+futures-channel = "0.3.30"
+futures-util = "0.3.30"
 log = "0.4.21"
 ordered-float = "4.2.0"
 pretty_env_logger = "0.5.0"
 rand = "0.8.5"
 serde = "1.0.197"
 serde_json = "1.0.115"
+tokio = { version = "1.37.0", features = ["full"] }
+tokio-tungstenite = "0.21.0"
 toml = "0.8.12"
+warp = "0.3.7"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]

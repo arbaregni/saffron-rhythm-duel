@@ -1,3 +1,5 @@
+mod server;
+
 use bevy::prelude::*;
 
 use crate::lane::{
@@ -80,6 +82,7 @@ impl Plugin for RemoteUserPlugin {
             .add_event::<RemoteLaneHit>()
             .add_systems(Startup, setup)
             .add_systems(Update, listen_for_remote_events)
+            .add_plugins(server::ServerPlugin)
         ;
     }
 }
