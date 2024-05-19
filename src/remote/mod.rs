@@ -1,5 +1,3 @@
-mod server;
-
 use bevy::prelude::*;
 
 use crate::lane::{
@@ -9,11 +7,12 @@ use crate::{
     CliArgs,
 };
 
+pub mod server;
+
 #[derive(Event)]
-#[derive(Debug,Clone)]
+#[derive(Debug)]
 pub struct RemoteLaneHit {
-    lane: Lane,
-    // can't trust the time that they would give us
+    lane: Lane
 }
 impl RemoteLaneHit {
     pub fn lane(&self) -> Lane {
@@ -21,57 +20,24 @@ impl RemoteLaneHit {
     }
 }
 
-#[derive(Component)]
-#[derive(Debug,Clone)]
-pub struct RemoteListener {
-    timer: Timer,
-}
-
-
-fn setup(
-    mut commands: Commands,
-    cli: Res<CliArgs>,
-)
-{
-
-    if cli.disable_remote_listener {
-        return;
-    }
-
-    commands.spawn(RemoteListener{
-        timer: Timer::new(
-           std::time::Duration::from_secs_f32(0.12),
-           TimerMode::Repeating
-        )
-    });
-}
-
-
-
-/// Listens on a separate thread for responses from the remote user.
-/// Turns the responses into events
-///  -> RemoteLaneHit
-fn listen_for_remote_events(
-    time: Res<Time>,
-    mut query: Query<&mut RemoteListener>,
+fn translate_messages_from_remote(
+    mut listener: ResMut<server::Listener>,
     mut remote_lane_hit: EventWriter<RemoteLaneHit>,
 ) {
+    let Some(msg) = listener.message() else {
+        return; // nothing to do
+    };
 
-    query
-        .iter_mut()
-        .for_each(|mut listener| {
+    use server::GameMessage::*;
+    match msg {
+        LaneHit { lane } => {
+            log::info!("emitting remote lane hit");
+            remote_lane_hit.send(RemoteLaneHit {
+                lane
+            });
+        }
+    }
 
-            // just fake the network stuff for now
-            // TODO: message passing here
-            listener.timer.tick(time.delta());
-            if listener.timer.just_finished() {
-                log::info!("emitting remote lane hit");
-                let lane = Lane::random();
-                remote_lane_hit.send(RemoteLaneHit {
-                    lane
-                });
-            }
-        });
 }
 
 pub struct RemoteUserPlugin;
@@ -80,9 +46,7 @@ impl Plugin for RemoteUserPlugin {
         log::info!("Building remote user plugin");
         app
             .add_event::<RemoteLaneHit>()
-            .add_systems(Startup, setup)
-            .add_systems(Update, listen_for_remote_events)
-            .add_plugins(server::ServerPlugin)
+            .add_systems(Update, translate_messages_from_remote)
         ;
     }
 }

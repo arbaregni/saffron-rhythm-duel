@@ -108,7 +108,6 @@ fn configure_logging(cli: &CliArgs) -> Result<()> {
     use bevy::log::tracing_subscriber::{
         self,
         filter::{
-            self,
             Targets,
             LevelFilter,
         },
@@ -158,10 +157,13 @@ fn main() -> Result<()> {
 
     log::info!("Initializing app...");
 
+    let listener = remote::server::Listener::init(&cli);
+
     App::new()
         // Load resources
         .insert_resource(cli)
         .insert_resource(config)
+        .insert_resource(listener)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
 
         // Configure default plugins
