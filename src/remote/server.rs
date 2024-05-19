@@ -1,21 +1,17 @@
 use bevy::prelude::*;
 
-use std::net::SocketAddr;
-
 use futures_util::{
-    SinkExt,
-    StreamExt
+    StreamExt,
 };
 use tokio::{
     net::{
         TcpListener,
+        TcpStream,
     },
     sync::mpsc,
 };
 use tokio_tungstenite::{
-    tungstenite::{
-        Message as WsMessage,
-    },
+    WebSocketStream,
 };
 use serde::{
     Deserialize,
@@ -89,23 +85,32 @@ impl Listener {
     }
 }
 
-async fn listen_for_incoming(send_msg: mpsc::Sender<GameMessage>, listen_at: &str) {
+async fn listen_for_incoming(mut send_msg: mpsc::Sender<GameMessage>, listen_at: &str) {
     log::info!("attempting to bind to {listen_at}");
     let listener = TcpListener::bind(&listen_at).await.unwrap();
     let local_addr = listener.local_addr().unwrap();
     log::info!("succesfully bound at {listener:?}, port = {local_addr}");
 
-    log::info!("waiting for a connection");
-    let (stream, _) = listener.accept().await.unwrap();
-    log::info!("accepted connection: {stream:?}");
+    loop {
+        log::info!("waiting for a connection");
+        let (stream, _) = listener.accept().await.unwrap();
+        log::info!("accepted connection: {stream:?}");
 
-    log::info!("attempting to upgrade connection");
-    let ws_stream = tokio_tungstenite::accept_async(stream)
-        .await
-        .expect("websocket handshake");
-    log::info!("new websocket connection");
+        log::info!("attempting to upgrade connection");
+        let ws_stream = tokio_tungstenite::accept_async(stream)
+            .await
+            .expect("websocket handshake");
 
-    let (mut _ws_write, mut ws_read) = ws_stream.split();
+        log::info!("new websocket connection");
+
+        handle_connection(ws_stream, &mut send_msg).await;
+
+        log::info!("client lost, back to listening");
+    }
+}
+
+async fn handle_connection(ws_stream: WebSocketStream<TcpStream>, send_msg: &mut mpsc::Sender<GameMessage>) {
+    let (_ws_write, mut ws_read) = ws_stream.split();
 
     loop {
 
