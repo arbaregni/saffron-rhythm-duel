@@ -1,11 +1,14 @@
 use bevy::prelude::*;
 
 use futures_util::{SinkExt, StreamExt};
-use std::{net::SocketAddr, time::Duration};
+use std::net::SocketAddr;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{
     accept_async,
-    tungstenite::{Error, Message, Result},
+    tungstenite::{
+        Message,
+        Result
+    },
 };
 
 use crate::{
@@ -14,6 +17,7 @@ use crate::{
 
 
 fn setup(args: Res<CliArgs>) {
+    log::info!("in setup()");
 
     let Ok(rt) = tokio::runtime::Runtime::new()
         .inspect_err(|err| log::error!("unable to  initialize tokio runtime: {err}"))
@@ -21,30 +25,25 @@ fn setup(args: Res<CliArgs>) {
             return;
         };
 
+
     rt.spawn(run(args.connect_to));
+
+    log::info!("all done");
 }
 
 async fn run(addr: SocketAddr) {
     log::info!("launching server to listen for incoming websocket requests");
 
-    let listener = TcpListener::bind(&addr).await.expect("can't listen");
-    info!("Listening at {addr}");
+    let try_socket = TcpListener::bind(&addr).await;
+    let listener = try_socket.expect("failed to bind");
+    log::info!("Listening at {addr}, listener = {listener:?}");
 
+    
     while let Ok((stream, _)) = listener.accept().await {
-        let Ok(peer) = stream.peer_addr()
-            .inspect(|err| log::error!("unable to get peer address: {err}"))
-            else {
-                log::warn!("connected streams should have a peer address, dropping this connection...");
-                continue;
-            };
-
-        info!("Connection at {peer}");
-        let ctn = Connection {
-            peer,
-            stream
-        };
-        tokio::spawn(accept_connection(ctn));
+        tokio::spawn(accept_connection(stream));
     }
+
+    log::info!("Listening");
 }
 
 #[derive(Debug)]
@@ -53,18 +52,55 @@ struct Connection {
     stream: TcpStream,
 }
 
-async fn accept_connection(ctn: Connection) {
-    use Error::*;
-    let result = handle_connection(ctn).await;
-    match result {
-        Ok(_) => { return },
-        Err(ConnectionClosed) => {
-            log::info!("connection closed by client");
-        }
-        Err(err) => {
-            log::error!("Error handling connection: {err}");
+async fn accept_connection(stream: TcpStream) -> Result<()> {
+    use std::time::Duration;
+
+    let addr = stream
+        .peer_addr()
+        .expect("connected streams have peer address");
+
+    log::info!("peer address: {addr}");
+
+    let ws_stream = tokio_tungstenite::accept_async(stream)
+        .await
+        .expect("websocket handshake");
+
+    let duration = Duration::from_secs(5);
+    let mut interval = tokio::time::interval(duration);
+
+    log::info!("new websocket connection: {addr}");
+
+    let (mut ws_write, mut ws_read) = ws_stream.split();
+
+    loop {
+        tokio::select! {
+            msg = ws_read.next() => {
+                let Some(msg) = msg else {
+                    log::warn!("breaking");
+                    break;
+                };
+                let msg = msg?;
+
+                log::info!("received: {msg:?}");
+
+                if msg.is_text() || msg.is_binary() {
+                    // just echo it
+                    ws_write.send(msg).await?;
+                } else if msg.is_close() {
+                    log::warn!("msg.is_close(), breaking...");
+                    break;
+                }
+
+            }
+
+            _ = interval.tick() => {
+                ws_write.send(Message::Text("tick".to_owned())).await?;
+            }
+
         }
     }
+
+    Ok(())
 }
 
 async fn handle_connection(ctn: Connection) -> Result<()> {
@@ -83,7 +119,10 @@ async fn handle_connection(ctn: Connection) -> Result<()> {
                 // bubble up any error
                 let msg = msg.transpose()?;
                 // break the loop if the stream is finished
-                let Some(msg) = msg else { break; };
+                let Some(msg) = msg else { 
+                    log::info!("stream finished");
+                    break;
+                };
 
                 log::info!("recvd: {msg:?}");
 
@@ -94,6 +133,7 @@ async fn handle_connection(ctn: Connection) -> Result<()> {
                 }
 
                 if msg.is_close() {
+                    log::info!("closing out");
                     break;
                 }
 

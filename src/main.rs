@@ -52,6 +52,9 @@ struct CliArgs {
     #[arg(long)]
     disable_remote_listener: bool,
 
+    #[arg(long, value_parser, num_args = 0.., value_delimiter = ',')]
+    log_filters: Option<Vec<String>>,
+
     #[arg(short, long)]
     debug: bool,
 }
@@ -101,18 +104,51 @@ fn make_window_plugin() -> bevy::window::WindowPlugin {
     }
 }
 
+fn configure_logging(cli: &CliArgs) -> Result<()> {
+    use bevy::log::tracing_subscriber::{
+        self,
+        filter::{
+            self,
+            Targets,
+            LevelFilter,
+        },
+        prelude::*
+    };
+
+    let stdout_log = tracing_subscriber::fmt::layer()
+        .compact()
+        .with_level(true)
+        .with_thread_names(true)
+        .with_file(true);
+
+    let project_name = "saffron_rhythm_duel";
+    let level = LevelFilter::INFO;
+    let mut targets = Targets::new().with_default(level);
+
+    if let Some(log_targets) = &cli.log_filters {
+        targets = targets.with_default(LevelFilter::OFF);
+
+        for module in log_targets {
+            let t = format!("{project_name}::{module}");
+            targets = targets.with_target(t, level);
+        }
+
+    };
+
+    tracing_subscriber::registry()
+        .with(
+            stdout_log
+                .with_filter(targets)
+        )
+        .init();
+    
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
 
-    // configure the logging
-    bevy::log::tracing_subscriber::fmt()
-        .compact()
-        .with_file(true)
-        .with_level(true)
-        .with_thread_names(true)
-        .try_init()
-        .expect("unable to initialize tracing subscriber");
-
+    configure_logging(&cli)?;
 
 
     log::info!("Reading config file...");

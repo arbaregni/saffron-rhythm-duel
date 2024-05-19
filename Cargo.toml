@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = { version = "1.0.81", features = ["backtrace"] }
 bevy = { version = "0.13.1", features = ["dynamic_linking", "shader_format_glsl"] }
 clap = { version = "4.5.4", features = ["derive"] }
+directories = "5.0.1"
 env_logger = "0.11.3"
 futures-channel = "0.3.30"
 futures-util = "0.3.30"
