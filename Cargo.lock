@@ -3565,6 +3565,8 @@ dependencies = [
  "tokio",
  "tokio-tungstenite",
  "toml",
+ "tungstenite",
+ "url",
  "warp",
 ]
 

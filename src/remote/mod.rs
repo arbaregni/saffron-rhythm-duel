@@ -3,8 +3,8 @@ use bevy::prelude::*;
 use crate::lane::{
     Lane
 };
-use crate::{
-    CliArgs,
+use crate::input::{
+    LaneHit
 };
 
 pub mod server;
@@ -20,11 +20,12 @@ impl RemoteLaneHit {
     }
 }
 
+/// GameMessages from remote become local game events
 fn translate_messages_from_remote(
     mut listener: ResMut<server::Listener>,
     mut remote_lane_hit: EventWriter<RemoteLaneHit>,
 ) {
-    let Some(msg) = listener.message() else {
+    let Some(msg) = listener.try_recv_message() else {
         return; // nothing to do
     };
 
@@ -37,7 +38,20 @@ fn translate_messages_from_remote(
             });
         }
     }
+}
 
+/// Local GameEvents become GameMessages which are sent to the remote
+fn translate_events_from_local(
+    mut listener: ResMut<server::Listener>,
+    mut lane_hit: EventReader<LaneHit>,
+) {
+    use server::GameMessage;
+    for ev in lane_hit.read() {
+        log::info!("consuming local lane hit, passing to remote");
+        listener.try_send_message(GameMessage::LaneHit {
+            lane: ev.lane()
+        });
+    }
 }
 
 pub struct RemoteUserPlugin;
@@ -47,6 +61,7 @@ impl Plugin for RemoteUserPlugin {
         app
             .add_event::<RemoteLaneHit>()
             .add_systems(Update, translate_messages_from_remote)
+            .add_systems(Update, translate_events_from_local)
         ;
     }
 }

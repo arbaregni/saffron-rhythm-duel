@@ -11,11 +11,11 @@ mod remote;
 mod widgets;
 
 use std::path::PathBuf;
-use std::net::SocketAddr;
 
 use anyhow::{Result, Context};
 use bevy::prelude::*;
 use clap::{
+    Subcommand,
     Parser,
 };
 use serde::Deserialize;
@@ -46,18 +46,30 @@ struct CliArgs {
     #[arg(short, long, default_value = "0.3")]
     fallback_beat_duration: f32,
 
-    #[arg(long)]
-    connect_to: SocketAddr,
-
-    #[arg(long)]
-    disable_remote_listener: bool,
-
     #[arg(long, value_parser, num_args = 0.., value_delimiter = ',')]
     log_filters: Option<Vec<String>>,
 
     #[arg(short, long)]
     debug: bool,
+
+    #[command(subcommand)]
+    mode: Option<ConnectionMode>,
 }
+
+#[derive(Subcommand)]
+#[derive(Debug,Clone)]
+enum ConnectionMode {
+    Serve {
+        /// The port to listen on. If not supplied, the Operating System will choose.
+        #[arg(long)]
+        port: Option<u16>,
+    },
+    Connect {
+        /// Attempts to connect to a remote URL
+        remote_url: url::Url,
+    }
+}
+
 
 
 #[derive(Debug)]
