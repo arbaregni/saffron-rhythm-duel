@@ -35,7 +35,7 @@ pub fn world() -> BBox {
 #[command(version, about, long_about = None)]
 struct CliArgs {
     #[arg(short, long, value_name = "FILE")]
-    chart: Option<PathBuf>,
+    chart: Option<String>,
 
     #[arg(long, value_name = "FILE", default_value = "assets/config.toml")]
     config: PathBuf,
@@ -206,11 +206,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         height: world().height(), 
     };
     commands.spawn(cam);
-
-    commands.spawn(AudioBundle {
-        source: asset_server.load("sounds/Windless Slopes.ogg"),
-        ..default()
-    });
 }
 
 

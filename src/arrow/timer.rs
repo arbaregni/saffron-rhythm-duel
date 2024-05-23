@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use serde::Serialize;
 
+use crate::arrow::chart::Chart;
+
 #[derive(Debug, Copy, Clone, clap::ValueEnum, Default, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum FinishBehavior {
@@ -69,6 +71,14 @@ impl BeatTimer {
         Some(BeatTick {
             beat
         })
+
+    }
+    pub fn reset_and_load_settings_for(&mut self, chart: &Chart) {
+        self.beat_count = 0; 
+
+        let duration = chart.beat_duration_secs();
+        let duration = std::time::Duration::from_secs_f32(duration);
+        self.beat_timer = Timer::new(duration, TimerMode::Repeating);
 
     }
 }

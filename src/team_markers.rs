@@ -19,7 +19,7 @@ pub enum Team {
     Enemy
 }
 
-pub trait Marker {
+pub trait Marker : Component + std::fmt::Debug + Clone + Send + Sync + 'static {
     fn as_team(&self) -> Team;
 }
 impl <T: Marker> From<T> for Team {

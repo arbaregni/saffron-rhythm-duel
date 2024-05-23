@@ -1,10 +1,8 @@
 mod chart;
 mod spawner;
 mod timer;
+mod chart_loader;
 
-use anyhow::{
-    Context
-};
 use bevy::prelude::*;
 
 use crate::team_markers::{
@@ -20,19 +18,18 @@ use crate::layout::{
     SongPanel,
 };
 
-pub use chart::{
-    Chart
-};
 
 pub use spawner::{
     ArrowSpawner,
-    SpawningMode,
     ArrowBuf,
     Arrow,
 };
 pub use timer::{
     BeatTimer,
     FinishBehavior,
+};
+pub use chart_loader::{
+    LoadChartEvent
 };
 
 fn world() -> BBox {
@@ -41,45 +38,13 @@ fn world() -> BBox {
 
 impl <'a, 'w, 's, T: Marker> crate::layout::SongPanelSetupContext<'a, 'w, 's, T> {
     pub fn setup_arrow_spawner(self) -> Self {
-        // set up the default, during the parsing of the cart we may overwrite this
-        let seconds_per_beat; 
-        // =========================================================
-        //    ARROW SPAWNER
-        // =========================================================
         log::info!("Creating arrow spawner");
-        let mode = match self.cli.chart.as_ref() {
-            Some(path) => {
-                use std::fs;
 
-                let friendly_name = path.to_string_lossy();
-                // parse the chart
-                let text = fs::read_to_string(path)
-                    .with_context(|| format!("Failed to read chart from path: {friendly_name}"))
-                        .unwrap();
+        let spawner = ArrowSpawner::create(self.marker.as_team());
 
-                    let chart: Chart = serde_json::from_str(text.as_str())
-                        .with_context(|| format!("File at {friendly_name} could not be parsed as a chart"))
-                        .unwrap();
-
-                    log::info!("Parsed chart '{}' from {}", chart.chart_name(), friendly_name);
-
-                    SpawningMode::Chart(chart)
-                }
-            None => {
-                log::info!("No chart specified, using random note generation");
-                SpawningMode::Random
-            }
-        };
-
-        // must overwrite the seconds_per_beat config
-        match &mode {
-            SpawningMode::Chart(chart) | SpawningMode::Recording(chart) => {
-                seconds_per_beat = chart.beat_duration_secs()
-            }
-            SpawningMode::Random => {
-                seconds_per_beat = self.cli.fallback_beat_duration;
-            }
-        }
+        let seconds_per_beat = spawner.chart()
+            .map(|chart| chart.beat_duration_secs())
+            .unwrap_or(self.cli.fallback_beat_duration);
 
         let on_finish = self.cli.on_finish.clone();
 
@@ -87,11 +52,7 @@ impl <'a, 'w, 's, T: Marker> crate::layout::SongPanelSetupContext<'a, 'w, 's, T>
         let beat_timer = Timer::new(duration, TimerMode::Repeating);
 
         self.commands.spawn((
-            ArrowSpawner {
-                mode,
-                arrow_buf: Vec::with_capacity(4),
-                team: self.marker.as_team(),
-            },
+            spawner,
             BeatTimer {
                 song_start: 3.0, // seconds
                 beat_count: 0,
@@ -99,6 +60,7 @@ impl <'a, 'w, 's, T: Marker> crate::layout::SongPanelSetupContext<'a, 'w, 's, T>
                 on_finish,
             },
             ArrowBuf::new(),
+            self.marker.clone(),
         ));
 
 
@@ -136,7 +98,7 @@ fn spawn_arrows(
         // =======================================
         //   spawn the arrows
         // =======================================
-        let panel = match spawner.team {
+        let panel = match spawner.team() {
             Team::Player => player_panel,
             Team::Enemy => enemy_panel,
         };
@@ -168,7 +130,7 @@ fn spawn_arrows(
             };
             commands
                 .spawn((arrow, sprite))
-                .assign_team_marker(spawner.team);
+                .assign_team_marker(spawner.team());
         }
 
     // =======================================
@@ -213,6 +175,7 @@ impl Plugin for ArrowsPlugin {
         app
             .add_systems(Update, spawn_arrows)
             .add_systems(Update, move_arrows)
+            .add_plugins(chart_loader::ChartLoaderPlugin)
         ;
     }
 }
