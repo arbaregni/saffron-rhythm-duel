@@ -20,7 +20,10 @@ pub enum Team {
 }
 
 pub trait Marker : Component + std::fmt::Debug + Clone + Send + Sync + 'static {
-    fn as_team(&self) -> Team;
+    fn team() -> Team;
+    fn as_team(&self) -> Team {
+        Self::team()
+    }
 }
 impl <T: Marker> From<T> for Team {
     fn from(marker: T) -> Team {
@@ -29,12 +32,12 @@ impl <T: Marker> From<T> for Team {
 }
 
 impl Marker for PlayerMarker {
-    fn as_team(&self) -> Team {
+    fn team() -> Team {
         Team::Player
     }
 }
 impl Marker for EnemyMarker {
-    fn as_team(&self) -> Team {
+    fn team() -> Team {
         Team::Enemy
     }
 }

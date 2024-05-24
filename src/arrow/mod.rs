@@ -2,6 +2,7 @@ mod chart;
 mod spawner;
 mod timer;
 mod chart_loader;
+mod chart_selector;
 
 use bevy::prelude::*;
 
@@ -176,6 +177,7 @@ impl Plugin for ArrowsPlugin {
             .add_systems(Update, spawn_arrows)
             .add_systems(Update, move_arrows)
             .add_plugins(chart_loader::ChartLoaderPlugin)
+            .add_plugins(chart_selector::ChartSelectorPlugin)
         ;
     }
 }
