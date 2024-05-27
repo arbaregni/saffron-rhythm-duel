@@ -10,11 +10,6 @@ use crate::lane::{
     Lane,
     LaneMap,
 };
-use crate::team_markers::{
-    PlayerMarker
-};
-
-use crate::arrow::LoadChartEvent;
 
 /// Represents a user attempting to complete the note in a lane.
 #[derive(Event)]
@@ -69,7 +64,6 @@ fn listen_for_input(
     input_mgr: Res<InputManager>,
     keys: Res<ButtonInput<KeyCode>>,
     mut lane_hit_events: EventWriter<LaneHit>,
-    mut load_chart_events: EventWriter<LoadChartEvent<PlayerMarker>>,
 ) {
     let now = time.elapsed().as_secs_f32();
 
@@ -82,16 +76,10 @@ fn listen_for_input(
             time_of_hit: now
         })
         .for_each(|ev| {
-            log::info!("Sending lane hit event");
+            log::debug!("Sending lane hit event");
             lane_hit_events.send(ev);
         });
 
-    if keys.just_pressed(KeyCode::Space) {
-        log::info!("jus tpressed space, sending load chart event");
-        let ev = LoadChartEvent::create("map1".to_string(), PlayerMarker);
-        load_chart_events.send(ev);
-
-    }
 }
 
 fn to_keycode(name: &str) -> KeyCode {

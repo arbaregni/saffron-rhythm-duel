@@ -41,9 +41,6 @@ struct CliArgs {
     #[arg(long, value_name = "FILE", default_value = "assets/config.toml")]
     config: PathBuf,
 
-    #[arg(short, long, value_enum, default_value_t)]
-    on_finish: arrow::FinishBehavior,
-
     #[arg(long, value_parser, num_args = 0.., value_delimiter = ',')]
     log_filters: Option<Vec<String>>,
 

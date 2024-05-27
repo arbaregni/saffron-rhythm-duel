@@ -14,7 +14,6 @@ pub use spawner::{
 mod timer;
 pub use timer::{
     BeatTimer,
-    FinishBehavior,
 };
 
 //
@@ -32,9 +31,7 @@ use crate::layout::{
     Layer,
     SongPanel,
 };
-use crate::{
-    CliArgs
-};
+
 fn world() -> BBox {
     crate::world()
 }
@@ -78,14 +75,12 @@ fn process_load_chart_events<T: Marker>(
     mut load_chart_events: EventReader<LoadChartEvent<T>>,
     mut commands: Commands,
     assets: Res<AssetServer>,
-    cli: Res<CliArgs>,
     time: Res<Time>,
     mut state: ResMut<NextState<SongState<T>>>,
 ) {
     if load_chart_events.is_empty() {
         return;
     }
-    let now = time.elapsed().as_secs_f32();
     load_chart_events
         .read()
         .for_each(|ev| {
@@ -96,27 +91,23 @@ fn process_load_chart_events<T: Marker>(
                 .inspect_err(|e| log::error!("unable to parse {chart_name} due to: {e}"))
                 else { return; };
 
-            log::info!("Creating arrow spawner");
-
             let spawner = ArrowSpawner::create(chart, T::team());
 
-            let audio = AudioBundle {
-                source: assets.load("sounds/windless-slopes.ogg"),
-                ..default()
+
+            let audio = match spawner.chart().sound_file() {
+                Some(filename) => {
+                    let filepath = format!("sounds/{filename}");
+                    log::info!("loading audio asset from path {filepath}");
+                    AudioBundle {
+                        source: assets.load(filepath),
+                        ..default()
+                    }
+                }
+                None => {
+                    AudioBundle::default()
+                }
             };
-
-            let seconds_per_beat = spawner.chart().beat_duration_secs();
-
-            let on_finish = cli.on_finish.clone();
-
-            let duration = std::time::Duration::from_secs_f32(seconds_per_beat);
-            let beat_timer = Timer::new(duration, TimerMode::Repeating);
-            let beat_timer = BeatTimer {
-                song_start: now,
-                beat_count: 0,
-                beat_timer,
-                on_finish,
-            };
+            let beat_timer = BeatTimer::create(time.as_ref(), spawner.chart());
 
             commands.spawn((
                 spawner,

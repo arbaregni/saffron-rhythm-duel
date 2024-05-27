@@ -1,6 +1,5 @@
 {
     "chart_name": "test song",
-    "sound_file": "something.ogg",
     "beat_duration_secs": 0.3,
     "lead_time_secs": 1.5,
     "wait_for_music_end": false,

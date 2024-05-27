@@ -32,7 +32,7 @@ fn translate_messages_from_remote(
     use server::GameMessage::*;
     match msg {
         LaneHit { lane } => {
-            log::info!("emitting remote lane hit");
+            log::debug!("emitting remote lane hit");
             remote_lane_hit.send(RemoteLaneHit {
                 lane
             });
@@ -47,7 +47,7 @@ fn translate_events_from_local(
 ) {
     use server::GameMessage;
     for ev in lane_hit.read() {
-        log::info!("consuming local lane hit, passing to remote");
+        log::debug!("consuming local lane hit, passing to remote");
         listener.try_send_message(GameMessage::LaneHit {
             lane: ev.lane()
         });

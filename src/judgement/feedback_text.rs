@@ -105,7 +105,7 @@ fn set_feedback_content_on_correct_hit(
     let Some(correct_hit) = correct_events.read().last() else {
         return; // nothing to do
     };
-    log::info!("consumed correct hit");
+    log::debug!("consumed correct hit");
 
     use SuccessGrade::*;
     use rand::seq::SliceRandom;
@@ -186,7 +186,7 @@ fn set_feedback_content_on_incorrect_hit(
     let Some(incorrect_hit) = incorrect_events.read().last() else {
         return; // nothing to do
     };
-    log::info!("consumed incorrect_hit event");
+    log::debug!("consumed incorrect_hit event");
 
     use FailingGrade::*;
 
@@ -213,7 +213,7 @@ fn set_feedback_content_on_missfire(
         // nothing to do
         return;
     };
-    log::info!("consumed missfire event");
+    log::debug!("consumed missfire event");
 
     use rand::seq::SliceRandom;
     let mut rng = rand::thread_rng();
@@ -240,7 +240,7 @@ fn set_feedback_content_on_dropped_note(
         // nothing to do
         return;
     };
-    log::info!("combo meter - consumed dropped note");
+    log::debug!("combo meter - consumed dropped note");
 
     let mut content = "Miss";
 

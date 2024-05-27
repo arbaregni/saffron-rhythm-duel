@@ -193,7 +193,7 @@ fn judge_lane_hits(
         // If we did not find anything, then that means it was a missfire.
         // so we can send that off now and skip to the next lane hit
         let Some((mut arrow, mut sprite, _time_diff)) = search_result else {
-            log::info!("No arrow found, sending a missfire event");
+            log::debug!("No arrow found, sending a missfire event");
             missfire_events.send(MissfireEvent {
                 lane_hit: lane_hit.clone()
             });
@@ -203,7 +203,7 @@ fn judge_lane_hits(
         // ---------------------------------------------- 
         //   found an arrow, send it off to get judged
         // ---------------------------------------------- 
-        log::info!("arrow found, judging now...");
+        log::debug!("arrow found, judging now...");
         let grade = judgement.judge(&lane_hit, arrow.as_ref());
 
 
@@ -214,17 +214,17 @@ fn judge_lane_hits(
             Grade::Success(grade) => {
                 // send the correct hit event
 
-                log::info!("marking arrow as completed");
+                log::debug!("marking arrow as completed");
                 arrow.mark_completed();
                 sprite.color = lane_hit.lane().colors().greyed;
-                log::info!("sending correct hit event");
+                log::debug!("sending correct hit event");
                 correct_arrow_events.send(CorrectHitEvent {
                     lane_hit: lane_hit.clone(),
                     grade,
                 });
             }
             Grade::Fail(grade) => {
-                log::info!("sending incorrect hit event");
+                log::debug!("sending incorrect hit event");
                 incorrect_arrow_events.send(IncorrectHitEvent {
                     lane_hit: lane_hit.clone(),
                     grade,
@@ -265,13 +265,13 @@ fn despawn_arrows(
     for (entity, transform, arrow) in query.iter() {
         let y = transform.translation.y;
         if y < panel.arrow_drop_line_y() {
-            log::info!("despawning arrow: {arrow:?}");
+            log::debug!("despawning arrow: {arrow:?}");
 
             // it's low enough to despawn
             commands.entity(entity).despawn();
 
             if arrow.status().is_pending() {
-                log::info!("emitting DroppedNoteEvent");
+                log::debug!("emitting DroppedNoteEvent");
                 events.send(DroppedNoteEvent {
                     arrow: arrow.clone(),
                 });

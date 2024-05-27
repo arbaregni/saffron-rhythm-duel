@@ -25,10 +25,6 @@ pub struct Chart {
 
     /// The song file name in assets/songs folder
     sound_file: Option<String>,
-
-    /// Should we wait for the end of the song?
-    #[serde(default)]
-    wait_for_music_end: bool,
 }
 
 #[derive(Serialize, Deserialize)]

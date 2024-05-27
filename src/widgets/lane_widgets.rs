@@ -242,7 +242,7 @@ pub fn jostle_on_dropped_note(
     let panel = panel.single();
 
     for dropped_note in dropped_notes.read() {
-        log::info!("consuming dropped note event");
+        log::debug!("consuming dropped note event");
 
         let event_lane = dropped_note.arrow().lane();
 
@@ -252,7 +252,6 @@ pub fn jostle_on_dropped_note(
             .iter()
             .filter(|(_, lane_letter, _)| lane_letter.lane == event_lane)
             .for_each(|(id, _, transform)| {
-                log::info!("adding jostling effect");
                 commands.entity(id)
                         .insert(JostlingEffect {
                             start_time: now,

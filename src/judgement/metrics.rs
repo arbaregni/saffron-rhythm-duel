@@ -124,7 +124,7 @@ pub fn update_metrics(
 
 
     for correct_hit in correct_hit_events.read() {
-        log::info!("metrics - processing correct hit event");
+        log::debug!("metrics - processing correct hit event");
 
         metrics.total_arrows   += 1;
         metrics.correct_hits   += 1;
@@ -138,11 +138,11 @@ pub fn update_metrics(
             reset_streak(metrics.as_mut());
         }
 
-        log::info!("metrics updated - {metrics:#?}");
+        log::debug!("metrics updated - {metrics:#?}");
     }
 
     for incorrect_hit in incorrect_hit_events.read() {
-        log::info!("metrics - processing incorrect hit event");
+        log::debug!("metrics - processing incorrect hit event");
 
         metrics.correct_hits   += 0;
         metrics.incorrect_hits += 1;
@@ -161,12 +161,12 @@ pub fn update_metrics(
 
         reset_streak(metrics.as_mut());
 
-        log::info!("metrics updated - {metrics:#?}");
+        log::debug!("metrics updated - {metrics:#?}");
     }
 
     // If the user presses a key to early or too late.
     for _missfire in missfire_events.read() {
-        log::info!("metrics - processing missfire");
+        log::debug!("metrics - processing missfire");
 
         // does not count towards `total_arrows` since it has not been removed yet
         // would be caught in dropped events
@@ -178,12 +178,12 @@ pub fn update_metrics(
 
         reset_streak(metrics.as_mut());
 
-        log::info!("metrics updated - {metrics:#?}");
+        log::debug!("metrics updated - {metrics:#?}");
     }
 
     // Notes that the player did not hit in time or were never removed
     for _dropped in dropped_events.read() {
-        log::info!("metrics - processing dropped note");
+        log::debug!("metrics - processing dropped note");
         
         metrics.total_arrows += 1;
         metrics.correct_hits   += 0;
@@ -193,7 +193,7 @@ pub fn update_metrics(
 
         reset_streak(metrics.as_mut());
 
-        log::info!("metrics updated - {metrics:#?}");
+        log::debug!("metrics updated - {metrics:#?}");
     }
 
 }

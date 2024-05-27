@@ -139,7 +139,6 @@ fn create_lane_box_on_press(
     for ev in input_events.read() {
         let lane = ev.lane();
 
-        log::info!("key press detected, creating lane box...");
         LaneBox::create(LaneBoxCreationArgs {
             commands: &mut commands,
             time: time.as_ref(),

@@ -212,7 +212,7 @@ where S: Stream<Item = Result<WsMessage,tungstenite::error::Error>> + Sink<WsMes
                     .inspect_err(|e| log::warn!("error reading incoming message {e}, closing connection"))
                     else { break; };
 
-                log::info!("received: {incoming:?}");
+                log::debug!("received: {incoming:?}");
                 if incoming.is_close() {
                     log::info!("client closed connection");
                     break;
@@ -240,7 +240,7 @@ where S: Stream<Item = Result<WsMessage,tungstenite::error::Error>> + Sink<WsMes
             // the game system may send us messages to rely to the remote user.
             // when this happens, write them to the websocket
             outgoing = outgoing_rx.recv() => {
-                log::info!("received outgoing message: {outgoing:?}");
+                log::debug!("received outgoing message: {outgoing:?}");
                 let outgoing = match outgoing {
                     Some(outgoing) => outgoing,
                     None => {
@@ -255,7 +255,7 @@ where S: Stream<Item = Result<WsMessage,tungstenite::error::Error>> + Sink<WsMes
 
                 let outgoing_ws_msg = WsMessage::text(outgoing_json);
 
-                log::info!("sending: {outgoing_ws_msg:?}");
+                log::debug!("sending: {outgoing_ws_msg:?}");
                 let Ok(_) = ws_write.send(outgoing_ws_msg)
                     .await
                     .inspect_err(|_| log::error!("unable to send on websocket"))

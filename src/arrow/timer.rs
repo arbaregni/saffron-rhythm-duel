@@ -1,20 +1,8 @@
 use bevy::prelude::*;
-use serde::Serialize;
 
 use crate::arrow::chart::Chart;
 
-#[derive(Debug, Copy, Clone, clap::ValueEnum, Default, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum FinishBehavior {
-    /// Stop everything after song finishes 
-    #[default]
-    Stop,
-    /// Repeat the song on loop
-    Repeat,
-    /// Record new notes on the song
-    Record,
-}
-
+#[derive(Debug)]
 pub struct BeatTick {
     /// The count of the beat we are on.
     beat: u32,
@@ -22,15 +10,13 @@ pub struct BeatTick {
 
 #[derive(Component)]
 pub struct BeatTimer {
-    /// What we do when we reach the end of the chart (if we're using a chart)
-    pub (in crate::arrow) on_finish: FinishBehavior,
     /// The time stamp when the song started
-    pub (in crate::arrow) song_start: f32,
+    pub song_start: f32,
     /// Ticks for every beat
-    pub (in crate::arrow) beat_timer: Timer,
+    pub beat_timer: Timer,
     /// Count the number of beat ticks, starting at 0
     /// Indexes into crate list of beats in a chart
-    pub (in crate::arrow) beat_count: u32,
+    pub beat_count: u32,
 }
 
 
@@ -41,8 +27,17 @@ impl BeatTick {
 }
 
 impl BeatTimer {
-    pub fn on_finish(&self) -> &FinishBehavior {
-        &self.on_finish
+    pub fn create(time: &Time, chart: &Chart) -> BeatTimer {
+        use std::time::Duration;
+
+        let duration = Duration::from_secs_f32(chart.beat_duration_secs());
+        let beat_timer = Timer::new(duration, TimerMode::Repeating);
+
+        BeatTimer {
+            song_start: time.elapsed().as_secs_f32(),
+            beat_timer,
+            beat_count: 0
+        }
     }
     pub fn song_start(&self) -> f32 {
         self.song_start
