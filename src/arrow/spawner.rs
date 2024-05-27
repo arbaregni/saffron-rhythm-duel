@@ -13,21 +13,21 @@ use super::{
 #[derive(Debug, Clone)]
 pub struct ArrowSpawner {
     /// How we will spawn the arrows
-    chart: Option<Chart>,
+    chart: Chart,
     /// The team we are spawning for.
     team: Team,
 }
 impl ArrowSpawner {
     /// Creates an arrow spawner
-    pub fn create(team: Team) -> Self {
+    pub fn create(chart: Chart, team: Team) -> Self {
         Self {
-            chart: None,
-            team,
+            chart,
+            team
         }
     }
 
-    pub fn chart(&self) -> Option<&Chart> {
-        self.chart.as_ref()
+    pub fn chart(&self) -> &Chart {
+        &self.chart
     }
     pub fn team(&self) -> Team {
         self.team
@@ -55,17 +55,10 @@ impl ArrowSpawner {
         Ok(())
     }
 
-    pub fn set_chart(&mut self, chart: Chart) {
-        self.chart = Some(chart);
-    }
-
     /// Creates the arrows ands appends them to the given buffer
     pub fn create_arrows_in(&self, buf: &mut Vec<Arrow>, time: &Time, beat: u32) {
         let now = time.elapsed().as_secs_f32();
-
-        let Some(chart) = self.chart.as_ref() else {
-            return;
-        };
+        let chart = self.chart();
 
         let lead_time = chart.lead_time_secs();
         for note in chart.get(beat) {

@@ -45,7 +45,6 @@ fn setup_ui(
                cli.as_ref(),
         )
         // creates all the associated resources
-        .setup_arrow_spawner()
         .setup_lane_targets()
         .setup_feedback_text()
         .setup_lane_letters()
@@ -59,7 +58,6 @@ fn setup_ui(
                config.as_ref(),
                cli.as_ref(),
         )
-        .setup_arrow_spawner()
         .setup_lane_targets()
         .finish();
 

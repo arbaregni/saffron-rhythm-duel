@@ -13,9 +13,6 @@ pub struct Chart {
     /// The name of the chart
     chart_name: String,
 
-    /// The song file name in assets/songs folder
-    sound_file: Option<String>,
-
     /// How long a beat lasts, in seconds. Controls how fast the beats are generated
     beat_duration_secs: f32,
 
@@ -25,6 +22,13 @@ pub struct Chart {
 
     /// Each beat is a list of potential notes to be played
     beats: Vec<Vec<Note>>,
+
+    /// The song file name in assets/songs folder
+    sound_file: Option<String>,
+
+    /// Should we wait for the end of the song?
+    #[serde(default)]
+    wait_for_music_end: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -35,6 +39,18 @@ pub struct Note {
 }
 
 impl Chart {
+    pub fn try_load_from_file(filename: &str) -> anyhow::Result<Chart> {
+        let path = format!("assets/charts/{filename}.json");
+
+        // read the chart from the file
+        let text = std::fs::read_to_string(&path)?;
+
+        let chart: Chart = serde_json::from_str(text.as_str())?;
+
+        log::info!("Parsed chart '{}' from {}", chart.chart_name(), path);
+
+        Ok(chart)
+    }
     pub fn get(&self, beat: u32) -> &[Note] {
         const EMPTY: &'static [Note] = &[];
         match self.beats.get(beat as usize) {

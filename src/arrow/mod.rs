@@ -1,4 +1,7 @@
 mod chart;
+pub use chart::{
+    Chart
+};
 mod arrow;
 pub use arrow::{
     Arrow,
@@ -12,10 +15,6 @@ mod timer;
 pub use timer::{
     BeatTimer,
     FinishBehavior,
-};
-mod chart_loader;
-pub use chart_loader::{
-    LoadChartEvent
 };
 
 //
@@ -33,9 +32,27 @@ use crate::layout::{
     Layer,
     SongPanel,
 };
-
+use crate::{
+    CliArgs
+};
 fn world() -> BBox {
     crate::world()
+}
+
+
+#[derive(Event)]
+#[derive(Debug)]
+pub struct LoadChartEvent<T: Marker> {
+    chart_name: String,
+    team: T,
+}
+impl <T: Marker> LoadChartEvent<T> {
+    pub fn create(chart_name: String, team: T) -> LoadChartEvent<T> {
+        Self {
+            chart_name,
+            team
+        }
+    }
 }
 
 #[derive(Event)]
@@ -52,43 +69,67 @@ impl <T: Marker> SongFinishedEvent<T> {
 
 #[derive(Debug,Clone,Eq,PartialEq,Hash)]
 #[derive(States)]
-pub(in crate::arrow) enum SongState<T: Marker> {
+enum SongState<T: Marker> {
     Playing(T),
     NotPlaying
 }
 
-impl <'a, 'w, 's, T: Marker> crate::layout::SongPanelSetupContext<'a, 'w, 's, T> {
-    pub fn setup_arrow_spawner(self) -> Self {
-        log::info!("Creating arrow spawner");
+fn process_load_chart_events<T: Marker>(
+    mut load_chart_events: EventReader<LoadChartEvent<T>>,
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+    cli: Res<CliArgs>,
+    time: Res<Time>,
+    mut state: ResMut<NextState<SongState<T>>>,
+) {
+    if load_chart_events.is_empty() {
+        return;
+    }
+    let now = time.elapsed().as_secs_f32();
+    load_chart_events
+        .read()
+        .for_each(|ev| {
+            log::info!("consuming load chart event");
 
-        let spawner = ArrowSpawner::create(self.marker.as_team());
+            let chart_name = ev.chart_name.as_str();
+            let Ok(chart) = Chart::try_load_from_file(chart_name)
+                .inspect_err(|e| log::error!("unable to parse {chart_name} due to: {e}"))
+                else { return; };
 
-        let seconds_per_beat = spawner.chart()
-            .map(|chart| chart.beat_duration_secs())
-            .unwrap_or(self.cli.fallback_beat_duration);
+            log::info!("Creating arrow spawner");
 
-        let on_finish = self.cli.on_finish.clone();
+            let spawner = ArrowSpawner::create(chart, T::team());
 
-        let duration = std::time::Duration::from_secs_f32(seconds_per_beat);
-        let beat_timer = Timer::new(duration, TimerMode::Repeating);
+            let audio = AudioBundle {
+                source: assets.load("sounds/windless-slopes.ogg"),
+                ..default()
+            };
 
-        self.commands.spawn((
-            spawner,
-            BeatTimer {
-                song_start: 3.0, // seconds
+            let seconds_per_beat = spawner.chart().beat_duration_secs();
+
+            let on_finish = cli.on_finish.clone();
+
+            let duration = std::time::Duration::from_secs_f32(seconds_per_beat);
+            let beat_timer = Timer::new(duration, TimerMode::Repeating);
+            let beat_timer = BeatTimer {
+                song_start: now,
                 beat_count: 0,
                 beat_timer,
                 on_finish,
-            },
-            ArrowBuf::new(),
-            self.marker.clone(),
-        ));
+            };
 
-
-        self
-    }
+            commands.spawn((
+                spawner,
+                beat_timer,
+                audio,
+                ArrowBuf::new(),
+                T::marker()
+            ));
+            state.set(SongState::Playing(T::marker()));
+        });
 }
 
+    
 fn spawn_arrows<T: Marker>(
     mut commands: Commands,
     time: Res<Time>,
@@ -163,26 +204,44 @@ fn move_arrows<T: Marker>(
 
 fn check_for_song_end<T: Marker>(
     _commands: Commands,
-    _time: Res<Time>,
+    time: Res<Time>,
     arrows: Query<&Arrow, With<T>>,
     spawner: Query<(&ArrowSpawner, &BeatTimer), With<T>>,
-    mut ending_ev: EventWriter<SongFinishedEvent<T>>,
     mut state: ResMut<NextState<SongState<T>>>,
 ) {
+    let now = time.elapsed().as_secs_f32();
 
     let (spawner, timer) = spawner.single();
 
-    let finished_with_beats = timer.beat_count() > spawner.chart().map(|c| c.num_beats()).unwrap_or(0);
+    let finished_with_beats = timer.beat_count() > spawner.chart().num_beats();
     let all_arrows_despawned = arrows.is_empty();
+    
+    let song_end = timer.song_start() + spawner.chart().total_duration();
+    let buffer_time = 1.2 * spawner.chart().lead_time_secs();
 
-    if finished_with_beats && all_arrows_despawned {
-
-        log::info!("emitting song finished event...");
-
-        ending_ev.send(SongFinishedEvent::create(T::marker()));
+    if finished_with_beats && all_arrows_despawned && now > song_end + buffer_time {
+        log::info!("set state: not playing song {:?}", T::team());
         state.set(SongState::NotPlaying);
     }
 }
+
+fn cleanup_spawner<T: Marker>(
+    mut commands: Commands,
+    spawners: Query<(Entity, &ArrowSpawner), With<T>>,
+    mut ending_ev: EventWriter<SongFinishedEvent<T>>,
+) {
+    spawners
+        .iter()
+        .for_each(|(e, _)| {
+            commands.entity(e)
+                    .despawn_recursive()
+        });
+
+    // tell the outside world that we finished
+    log::info!("emitting song finished event...");
+    ending_ev.send(SongFinishedEvent::create(T::marker()));
+}
+
 
 pub struct ArrowsPlugin;
 impl Plugin for ArrowsPlugin {
@@ -191,16 +250,23 @@ impl Plugin for ArrowsPlugin {
         self.build_for_team(app, PlayerMarker{})
             .build_for_team(app, EnemyMarker{})
         ;
-        app
-            .add_plugins(chart_loader::ChartLoaderPlugin)
-        ;
     }
 }
 impl ArrowsPlugin {
     fn build_for_team<'s, T: Marker>(&'s self, app: &mut App, team: T) -> &'s Self {
         app
+            .add_event::<LoadChartEvent<T>>()
             .add_event::<SongFinishedEvent<T>>()
             .insert_state(SongState::NotPlaying::<T>)
+
+            // Load the charts, if we are not playing a song already
+            .add_systems(Update, 
+                    process_load_chart_events::<T>.run_if(in_state(
+                            SongState::NotPlaying::<T>
+                    ))
+            )
+
+            // while the song is playing, move the arrow and check for the end
             .add_systems(Update, (
                     spawn_arrows::<T>,
                     move_arrows::<T>,
@@ -209,6 +275,8 @@ impl ArrowsPlugin {
                     SongState::Playing(team.clone())
                 ))
             )
+            // when we finish, despawn it
+            .add_systems(OnEnter(SongState::NotPlaying::<T>), cleanup_spawner::<T>)
         ;
         self
     }
