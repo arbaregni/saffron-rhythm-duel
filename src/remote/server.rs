@@ -70,7 +70,7 @@ impl Listener {
         let (outgoing_tx, outgoing_rx) = mpsc::channel(1024);
         
         match &cli.mode {
-            Some(ConnectionMode::Serve { port }) => {
+            Some(ConnectionMode::Listen { port }) => {
                 // if supplying zero, the OS will give us a port to use
                 let port = port.unwrap_or(0);
 

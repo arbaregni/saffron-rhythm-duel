@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+mod logging;
 mod arrow;
 mod lane;
 mod judgement;
@@ -35,14 +36,11 @@ pub fn world() -> BBox {
 #[derive(Debug)]
 #[command(version, about, long_about = None)]
 struct CliArgs {
-    #[arg(short, long, value_name = "FILE")]
-    chart: Option<String>,
-
     #[arg(long, value_name = "FILE", default_value = "assets/config.toml")]
     config: PathBuf,
 
-    #[arg(long, value_parser, num_args = 0.., value_delimiter = ',')]
-    log_filters: Option<Vec<String>>,
+    #[arg(long, value_parser=logging::parse_log_filter, num_args = 0.., value_delimiter = ',', help=logging::LOG_FILTER_HELP_MESSAGE)]
+    log_filters: Option<Vec<logging::LogFilter>>,
 
     #[arg(short, long)]
     debug: bool,
@@ -54,13 +52,16 @@ struct CliArgs {
 #[derive(Subcommand)]
 #[derive(Debug,Clone)]
 enum ConnectionMode {
-    Serve {
-        /// The port to listen on. If not supplied, the Operating System will choose.
+    Listen {
+        /// The port to listen on. If not supplied, the operating system will choose.
+        /// Your remote partner will need this port and your IP address to connect.
         #[arg(long)]
         port: Option<u16>,
     },
     Connect {
-        /// Attempts to connect to a remote URL
+        /// Attempts to connect to a remote URL.
+        /// Should be in the format of `ws://<IP>:<PORT>, where <IP> and <PORT> are provided by
+        /// your remote partner.
         remote_url: url::Url,
     }
 }
@@ -111,50 +112,10 @@ fn make_window_plugin() -> bevy::window::WindowPlugin {
     }
 }
 
-fn configure_logging(cli: &CliArgs) -> Result<()> {
-    use bevy::log::tracing_subscriber::{
-        self,
-        filter::{
-            Targets,
-            LevelFilter,
-        },
-        prelude::*
-    };
-
-    let stdout_log = tracing_subscriber::fmt::layer()
-        .compact()
-        .with_level(true)
-        .with_thread_names(true)
-        .with_file(true);
-
-    let project_name = "saffron_rhythm_duel";
-    let level = LevelFilter::INFO;
-    let mut targets = Targets::new().with_default(level);
-
-    if let Some(log_targets) = &cli.log_filters {
-        targets = targets.with_default(LevelFilter::OFF);
-
-        for module in log_targets {
-            let t = format!("{project_name}::{module}");
-            targets = targets.with_target(t, level);
-        }
-
-    };
-
-    tracing_subscriber::registry()
-        .with(
-            stdout_log
-                .with_filter(targets)
-        )
-        .init();
-    
-    Ok(())
-}
-
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
 
-    configure_logging(&cli)?;
+    logging::configure_logging(&cli)?;
 
 
     log::info!("Reading config file...");
