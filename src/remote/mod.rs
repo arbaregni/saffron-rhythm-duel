@@ -6,6 +6,14 @@ use crate::lane::{
 use crate::input::{
     LaneHit
 };
+use crate::team_markers::{
+    PlayerMarker,
+    EnemyMarker
+};
+use crate::arrow::{
+    LoadChartEvent
+};
+
 
 pub mod server;
 
@@ -24,6 +32,7 @@ impl RemoteLaneHit {
 fn translate_messages_from_remote(
     mut listener: ResMut<server::Listener>,
     mut remote_lane_hit: EventWriter<RemoteLaneHit>,
+    mut remote_load_chart: EventWriter<LoadChartEvent<EnemyMarker>>,
 ) {
     let Some(msg) = listener.try_recv_message() else {
         return; // nothing to do
@@ -37,6 +46,13 @@ fn translate_messages_from_remote(
                 lane
             });
         }
+        LoadChart { chart_name } => {
+            log::debug!("emitting remote chart load");
+            remote_load_chart.send(LoadChartEvent::create(
+                chart_name,
+                EnemyMarker{},
+            ));
+        }
     }
 }
 
@@ -44,12 +60,19 @@ fn translate_messages_from_remote(
 fn translate_events_from_local(
     mut listener: ResMut<server::Listener>,
     mut lane_hit: EventReader<LaneHit>,
+    mut load_chart: EventReader<LoadChartEvent<PlayerMarker>>,
 ) {
     use server::GameMessage;
     for ev in lane_hit.read() {
         log::debug!("consuming local lane hit, passing to remote");
         listener.try_send_message(GameMessage::LaneHit {
             lane: ev.lane()
+        });
+    }
+    for ev in load_chart.read() {
+        log::debug!("consuming local chart load, passing to remote");
+        listener.try_send_message(GameMessage::LoadChart {
+            chart_name: ev.chart_name().to_string()
         });
     }
 }

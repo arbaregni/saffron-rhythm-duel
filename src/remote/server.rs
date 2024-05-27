@@ -42,6 +42,9 @@ use crate::lane::{
 pub enum GameMessage {
     LaneHit {
         lane: Lane
+    },
+    LoadChart {
+        chart_name: String
     }
 }
 

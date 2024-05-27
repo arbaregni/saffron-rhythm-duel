@@ -37,6 +37,12 @@ pub trait Marker : Component
     fn as_team(&self) -> Team {
         Self::team()
     }
+    fn is_local() -> bool {
+        match <Self as Marker>::team() {
+            Team::Player => true,
+            Team::Enemy => false,
+        }
+    }
 }
 impl <T: Marker> From<T> for Team {
     fn from(marker: T) -> Team {
@@ -60,6 +66,7 @@ impl Marker for EnemyMarker {
         Team::Enemy
     }
 }
+
 
 pub trait EntityCommandsExt {
     /// Assigns the current entity the marker component corresponding to the specified `team`.

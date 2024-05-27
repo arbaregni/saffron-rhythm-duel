@@ -51,6 +51,11 @@ impl <T: Marker> LoadChartEvent<T> {
         }
     }
 }
+impl <T: Marker> LoadChartEvent<T> {
+    pub fn chart_name(&self) -> &str {
+        self.chart_name.as_str()
+    }
+}
 
 #[derive(Event)]
 #[derive(Debug, Clone)]
@@ -94,8 +99,8 @@ fn process_load_chart_events<T: Marker>(
             let spawner = ArrowSpawner::create(chart, T::team());
 
 
-            let audio = match spawner.chart().sound_file() {
-                Some(filename) => {
+            let audio = match (T::is_local(), spawner.chart().sound_file()) {
+                (true, Some(filename)) => {
                     let filepath = format!("sounds/{filename}");
                     log::info!("loading audio asset from path {filepath}");
                     AudioBundle {
@@ -103,7 +108,7 @@ fn process_load_chart_events<T: Marker>(
                         ..default()
                     }
                 }
-                None => {
+                _ => {
                     AudioBundle::default()
                 }
             };
