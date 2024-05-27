@@ -34,7 +34,7 @@ pub fn world() -> BBox {
 #[derive(Parser)]
 #[derive(Resource)]
 #[derive(Debug)]
-#[command(version, about, long_about = None)]
+#[command(version, about, arg_required_else_help=true, long_about = None)]
 struct CliArgs {
     #[arg(long, value_name = "FILE", default_value = "assets/config.toml")]
     config: PathBuf,
@@ -125,13 +125,13 @@ fn main() -> Result<()> {
 
     log::info!("Initializing app...");
 
-    let listener = remote::server::Listener::init(&cli);
+    let comms = remote::communicate::Comms::init(&cli);
 
     App::new()
         // Load resources
         .insert_resource(cli)
         .insert_resource(config)
-        .insert_resource(listener)
+        .insert_resource(comms)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
 
         // Configure default plugins

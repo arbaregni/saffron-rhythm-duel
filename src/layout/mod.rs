@@ -27,11 +27,20 @@ use crate::team_markers::{
     EnemyMarker,
 };
 
-fn setup_ui(
+#[derive(Debug,Clone,PartialEq,Eq,PartialOrd,Ord,Hash,Default)]
+#[derive(States)]
+pub enum LayoutState {
+    #[default]
+    NotReady,
+    Done
+}
+
+fn setup_layout(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     config: Res<Config>,
     cli: Res<CliArgs>,
+    mut state: ResMut<NextState<LayoutState>>,
 ) {
     let bounds = crate::world();
     let [player_bounds, _, enemy_bounds] = bounds.split_horizontal([0.4, 0.2, 0.4]);
@@ -61,13 +70,17 @@ fn setup_ui(
         .setup_lane_targets()
         .finish();
 
+    // done with laying out, we set this so that now the game objects can spawn in
+    state.set(LayoutState::Done);
 }
 
 pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_systems(Startup, setup_ui)
+            .init_state::<LayoutState>()
+            .add_systems(Startup, setup_layout)
+
             .add_systems(Startup, ui_timer::setup)
             .add_systems(Update, ui_timer::update_time_text);
     }
