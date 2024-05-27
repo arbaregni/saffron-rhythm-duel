@@ -5,6 +5,7 @@ use crate::arrow::{
     chart::Chart,
     spawner::ArrowSpawner,
     timer::BeatTimer,
+    SongState,
 };
 use crate::team_markers::{
     Marker,
@@ -35,6 +36,7 @@ fn process_load_chart_events<T: Marker>(
     mut commands: Commands,
     assets: Res<AssetServer>,
     mut query: Query<(&mut ArrowSpawner, &mut BeatTimer), With<T>>,
+    mut state: ResMut<NextState<SongState<T>>>,
 ) {
     if load_chart_events.is_empty() {
         return;
@@ -64,6 +66,7 @@ fn process_load_chart_events<T: Marker>(
                 ..default()
             });
 
+            state.set(SongState::Playing(T::marker()));
         });
 }
 

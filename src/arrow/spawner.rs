@@ -3,10 +3,22 @@ use bevy::prelude::*;
 use crate::lane::Lane;
 use crate::team_markers::{
     Team,
+    Marker,
 };
 
 use super::chart::Chart;
 
+
+#[derive(Event)]
+#[derive(Debug, Clone)]
+pub struct SongFinishedEvent<T: Marker> {
+    team: T,
+}
+impl <T: Marker> SongFinishedEvent<T> {
+    pub fn create(team: T) -> Self {
+        Self { team }
+    }
+}
 
 #[derive(Component, Debug, Clone)]
 pub struct Arrow {
@@ -136,6 +148,7 @@ impl ArrowSpawner {
             buf.push(arrow);
         }
     }
+
 }
 
 

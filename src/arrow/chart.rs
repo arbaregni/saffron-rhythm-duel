@@ -16,10 +16,11 @@ pub struct Chart {
     /// The song file name in assets/songs folder
     sound_file: Option<String>,
 
-    /// How long a beat lasts, in seconds
+    /// How long a beat lasts, in seconds. Controls how fast the beats are generated
     beat_duration_secs: f32,
 
-    /// How many seconds the notes spend scrolling down before they can be hit
+    /// How many seconds the notes spend scrolling down before they can be hit. Controls how fast
+    /// the arrows move.
     lead_time_secs: f32,
 
     /// Each beat is a list of potential notes to be played
@@ -55,6 +56,10 @@ impl Chart {
     }
     pub fn num_beats(&self) -> u32 {
         self.beats.len() as u32
+    }
+    pub fn total_duration(&self) -> f32 {
+        self.beat_duration_secs() * (self.num_beats() as f32)
+            + self.lead_time_secs()
     }
 }
 

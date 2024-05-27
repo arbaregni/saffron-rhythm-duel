@@ -4,7 +4,10 @@ use crate::team_markers::{
     PlayerMarker,
     Marker
 };
-use crate::arrow::LoadChartEvent;
+use crate::arrow::{
+    LoadChartEvent,
+    SongFinishedEvent
+};
 
 #[derive(Debug)]
 #[derive(Component)]
@@ -22,6 +25,13 @@ impl ChartSelector {
             selectable,
             curr_selected: None
         }
+    }
+    fn selected_chart_name(&self) -> Option<&str> {
+        self.curr_selected
+            .and_then(|index| {
+                self.selectable.get(index)
+            })
+            .map(|s| s.as_str())
     }
 }
 
@@ -56,8 +66,8 @@ fn find_selectable_charts(buf: &mut Vec<String>) {
 }
 
 const NORMAL_FILL_COLOR: Color = Color::rgb(0.3, 0.3, 0.3);
-const PRESSED_FILL_COLOR: Color = Color::rgb(0.3, 0.3, 0.3);
-const HOVERED_FILL_COLOR: Color = Color::rgb(0.3, 0.3, 0.3);
+const PRESSED_FILL_COLOR: Color = Color::rgb(0.2, 0.2, 0.2);
+const HOVERED_FILL_COLOR: Color = Color::rgb(0.5, 0.5, 0.5);
 
 const NORMAL_BORDER_COLOR: Color = Color::BLACK;
 
@@ -78,6 +88,19 @@ struct SelectChartButton {
     chart_name: String,
 }
 
+fn enable_chart_selector_on_song_end<T: Marker>(
+    mut song_end_ev: EventReader<SongFinishedEvent<T>>,
+    mut state: ResMut<NextState<ChartSelectorState>>,
+) {
+    if song_end_ev.is_empty() {
+        return; // Nothing to do
+    }
+    song_end_ev.clear();
+    state.set(ChartSelectorState::Enabled);
+}
+
+
+
 fn setup_chart_selector<T: Marker>(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -85,7 +108,6 @@ fn setup_chart_selector<T: Marker>(
     let font = asset_server.load(crate::BASE_FONT_NAME);
 
     let chart_selector = ChartSelector::create();
-
 
     let text_style = TextStyle {
         font_size: 36.0,
@@ -104,55 +126,58 @@ fn setup_chart_selector<T: Marker>(
         align_items: AlignItems::Center,
         ..default()
     };
-   
-    let make_button = |parent: &mut ChildBuilder<'_>, text_content: &str, index| {
-        parent
-            .spawn((
-                    ButtonBundle {
-                        style: button_style.clone(),
-                        border_color: BorderColor(Color::BLACK),
-                        background_color: NORMAL_FILL_COLOR.into(),
-                        ..default()
-                    },
-                    SelectChartButton {
-                        index,
-                        chart_name: text_content.to_string(),
-                    }
-            ))
-            .with_children(|parent| {
-                parent.spawn(TextBundle::from_section(
-                    text_content,
-                    text_style.clone()
-                ));
-            });
+    let button_bundle = ButtonBundle {
+        style: button_style,
+        border_color: Color::BLACK.into(),
+        background_color: NORMAL_FILL_COLOR.into(),
+        ..default()
     };
 
-    let text_contents = chart_selector.selectable.clone();
-    
+    let buttons: Vec<_> = chart_selector.selectable
+        .iter()
+        .enumerate()
+        .map(|(index, chart_name)| {
+            let select = SelectChartButton {
+                index,
+                chart_name: chart_name.to_string(),
+            };
+            let text = TextBundle::from_section(
+                chart_name,
+                text_style.clone()
+            );
+            commands
+                .spawn((
+                    button_bundle.clone(),
+                    select
+                ))
+                .with_children(|p| {
+                    p.spawn(text);
+                })
+                .id()
+        })
+        .collect();
+
+    let chart_selector_style = Style {
+        width: Val::Percent(100.0),
+        height: Val::Percent(100.0),
+        align_items: AlignItems::Center,
+        justify_content: JustifyContent::Center,
+        flex_direction: FlexDirection::Column,
+        ..default()
+    };
+
+    let chart_selector_node = NodeBundle {
+        style: chart_selector_style,
+        ..default()
+    };
+
     commands
         .spawn((
             chart_selector,
-            NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    flex_direction: FlexDirection::Column,
-                    ..default()
-                },
-                ..default()
-            }
+            chart_selector_node,
         ))
-        .with_children(|parent| {
-
-            // the buttons
-            for (index, text_content) in text_contents.iter().enumerate() {
-
-                make_button(parent, text_content, index);
-            }
-        });
-}
+        .push_children(buttons.as_slice());
+    }
 
 fn despawn_chart_selector<T: Marker>(
     mut commands: Commands,
@@ -174,36 +199,46 @@ fn interact_with_buttons(
         ),
         (Changed<Interaction>, With<Button>)
     >,
+    mut chart_selector: Query<&mut ChartSelector>,
     mut state: ResMut<NextState<ChartSelectorState>>,
     mut load_chart_ev: EventWriter<LoadChartEvent<PlayerMarker>>,
 ) {
-    for (interaction, mut color, _border_color, select_chart) in interactions.iter_mut() {
-        use Interaction::*;
-        // let mut text = text.get_mut(children[0]).unwrap();
-        match *interaction {
-            Pressed => {
-                *color = Color::BLUE.into();
-                // send the thing if it's the first frame
-                log::info!("pressed");
-                load_chart_ev.send(LoadChartEvent::create(
-                    select_chart.chart_name.clone(),
-                    PlayerMarker{}
-                ));
-                state.set(ChartSelectorState::Disabled);
-            },
-            Hovered => {
-                *color = Color::RED.into();
+    let mut chart_selector = chart_selector.single_mut(); // otherwise, this system would have nothing
+                                                          // to do
+
+    let mut do_load_chart = false;
+
+    interactions.iter_mut()
+        .for_each(|(interaction, mut color, _border_color, select_button)| {
+            match *interaction {
+                Interaction::Pressed => {
+                    *color = PRESSED_FILL_COLOR.into();
+                     chart_selector.curr_selected = Some(select_button.index);
+
+                     // signal for us to send the event on a button click
+                     do_load_chart = true;
+                }
+                Interaction::Hovered => {
+                    *color = HOVERED_FILL_COLOR.into();
+                    chart_selector.curr_selected = Some(select_button.index);
+                }
+                Interaction::None => {
+                    *color = NORMAL_FILL_COLOR.into();
+                }
             }
-            None => {
-                *color = NORMAL_FILL_COLOR.into();
-            }
+        });
+
+    if do_load_chart {
+        if let Some(chart_name) = chart_selector.selected_chart_name() {
+            log::info!("emitting load chart event");
+            load_chart_ev.send(LoadChartEvent::create(
+                chart_name.to_string(),
+                PlayerMarker{}
+            ));
+            state.set(ChartSelectorState::Disabled);
         }
-
-
     }
-
 }
-
 
 pub struct ChartSelectorPlugin;
 impl Plugin for ChartSelectorPlugin {
@@ -211,6 +246,7 @@ impl Plugin for ChartSelectorPlugin {
         log::info!("building chart selector plugin");
         app
             .init_state::<ChartSelectorState>()
+            .add_systems(Update, enable_chart_selector_on_song_end::<PlayerMarker>)
             .add_systems(OnEnter(ChartSelectorState::Enabled), setup_chart_selector::<PlayerMarker>)
             .add_systems(Update, interact_with_buttons.run_if(in_state(ChartSelectorState::Enabled)))
             .add_systems(OnExit(ChartSelectorState::Enabled), despawn_chart_selector::<PlayerMarker>)

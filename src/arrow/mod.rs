@@ -1,17 +1,32 @@
 mod chart;
 mod spawner;
+pub use spawner::{
+    ArrowSpawner,
+    ArrowBuf,
+    Arrow,
+    SongFinishedEvent
+};
 mod timer;
+pub use timer::{
+    BeatTimer,
+    FinishBehavior,
+};
 mod chart_loader;
+pub use chart_loader::{
+    LoadChartEvent
+};
 mod chart_selector;
 
+
+//
+// Our imports
+//
 use bevy::prelude::*;
 
 use crate::team_markers::{
     PlayerMarker,
     EnemyMarker,
-    Team,
     Marker,
-    EntityCommandsExt,
 };
 use crate::layout::{
     BBox,
@@ -19,22 +34,15 @@ use crate::layout::{
     SongPanel,
 };
 
-
-pub use spawner::{
-    ArrowSpawner,
-    ArrowBuf,
-    Arrow,
-};
-pub use timer::{
-    BeatTimer,
-    FinishBehavior,
-};
-pub use chart_loader::{
-    LoadChartEvent
-};
-
 fn world() -> BBox {
     crate::world()
+}
+
+#[derive(Debug,Clone,Eq,PartialEq,Hash)]
+#[derive(States)]
+pub(in crate::arrow) enum SongState<T: Marker> {
+    Playing(T),
+    NotPlaying
 }
 
 impl <'a, 'w, 's, T: Marker> crate::layout::SongPanelSetupContext<'a, 'w, 's, T> {
@@ -69,16 +77,13 @@ impl <'a, 'w, 's, T: Marker> crate::layout::SongPanelSetupContext<'a, 'w, 's, T>
     }
 }
 
-
-fn spawn_arrows(
+fn spawn_arrows<T: Marker>(
     mut commands: Commands,
     time: Res<Time>,
-    mut spawner_query: Query<(&ArrowSpawner, &mut BeatTimer, &mut ArrowBuf)>,
-    player_panel: Query<&SongPanel, With<PlayerMarker>>,
-    enemy_panel: Query<&SongPanel, With<EnemyMarker>>,
+    mut spawner_query: Query<(&ArrowSpawner, &mut BeatTimer, &mut ArrowBuf), With<T>>,
+    panel_query: Query<&SongPanel, With<T>>,
 ) {
-    let player_panel = player_panel.single();
-    let enemy_panel = enemy_panel.single();
+    let panel = panel_query.single();
 
     // ========================================
     //    create the arrows
@@ -99,11 +104,6 @@ fn spawn_arrows(
         // =======================================
         //   spawn the arrows
         // =======================================
-        let panel = match spawner.team() {
-            Team::Player => player_panel,
-            Team::Enemy => enemy_panel,
-        };
-
         for arrow in arrow_buf.buf.drain(..) {
 
             let x = panel.lane_bounds(arrow.lane).center().x;
@@ -130,42 +130,45 @@ fn spawn_arrows(
                 ..default()
             };
             commands
-                .spawn((arrow, sprite))
-                .assign_team_marker(spawner.team());
+                .spawn((arrow, sprite, T::marker()));
+
         }
 
-    // =======================================
-    //   check for end conditions
-    // =======================================
-    /*
-    let is_ending = match &spawner.mode {
-        SpawningMode::Chart(chart) => {
-            spawner.beat_count >= chart.num_beats()
-        },
-        SpawningMode::Recording(_) => {
-            false
-        },
-        SpawningMode::Random => {
-            false
-        }
-    };
-
-    // check if we need to loop
-    
-    if is_ending && matches!(&spawner.on_finish, FinishBehavior::Repeat) {
-        spawner.beat_count = 0;
-    }
-    */
-               
     }
 
 }
 
-fn move_arrows(time: Res<Time>, mut query: Query<(&mut Transform, &Arrow)>) {
+fn move_arrows<T: Marker>(
+    time: Res<Time>,
+    mut arrows: Query<(&mut Transform, &Arrow), With<T>>
+) {
     let now = time.elapsed().as_secs_f32();
-    for (mut transform, arrow) in query.iter_mut() {
+    for (mut transform, arrow) in arrows.iter_mut() {
         let t = (now - arrow.creation_time) / (arrow.arrival_time - arrow.creation_time);
         transform.translation.y = world().bottom() * t + world().top() * (1.0 - t);
+    }
+}
+
+fn check_for_song_end<T: Marker>(
+    _commands: Commands,
+    _time: Res<Time>,
+    arrows: Query<&Arrow, With<T>>,
+    spawner: Query<(&ArrowSpawner, &BeatTimer), With<T>>,
+    mut ending_ev: EventWriter<SongFinishedEvent<T>>,
+    mut state: ResMut<NextState<SongState<T>>>,
+) {
+
+    let (spawner, timer) = spawner.single();
+
+    let finished_with_beats = timer.beat_count() > spawner.chart().map(|c| c.num_beats()).unwrap_or(0);
+    let all_arrows_despawned = arrows.is_empty();
+
+    if finished_with_beats && all_arrows_despawned {
+
+        log::info!("emitting song finished event...");
+
+        ending_ev.send(SongFinishedEvent::create(T::marker()));
+        state.set(SongState::NotPlaying);
     }
 }
 
@@ -173,12 +176,29 @@ pub struct ArrowsPlugin;
 impl Plugin for ArrowsPlugin {
     fn build(&self, app: &mut App) {
         log::info!("building Arrow plugin...");
+        self.build_for_team(app, PlayerMarker{})
+            .build_for_team(app, EnemyMarker{})
+        ;
         app
-            .add_systems(Update, spawn_arrows)
-            .add_systems(Update, move_arrows)
             .add_plugins(chart_loader::ChartLoaderPlugin)
             .add_plugins(chart_selector::ChartSelectorPlugin)
         ;
     }
 }
-
+impl ArrowsPlugin {
+    fn build_for_team<'s, T: Marker>(&'s self, app: &mut App, team: T) -> &'s Self {
+        app
+            .add_event::<SongFinishedEvent<T>>()
+            .insert_state(SongState::NotPlaying::<T>)
+            .add_systems(Update, (
+                    spawn_arrows::<T>,
+                    move_arrows::<T>,
+                    check_for_song_end::<T>,
+                ).run_if(in_state(
+                    SongState::Playing(team.clone())
+                ))
+            )
+        ;
+        self
+    }
+}

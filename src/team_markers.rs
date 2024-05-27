@@ -1,17 +1,21 @@
+use std::{
+    fmt, cmp, hash
+};
+
 use bevy::prelude::*;
 
 // Put this component on entities owned by the local user
 #[derive(Component)]
-#[derive(Debug,Copy,Clone)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq,Hash)]
 pub struct PlayerMarker;
 
 // Plut this component on entities owned by the remote user
 #[derive(Component)]
-#[derive(Debug,Copy,Clone)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq,Hash)]
 pub struct EnemyMarker;
 
 /// Runtime available information on the object's side.
-#[derive(Debug,Copy,Clone,PartialEq,Eq)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq,Hash)]
 pub enum Team {
     /// Local user.
     Player,
@@ -19,7 +23,16 @@ pub enum Team {
     Enemy
 }
 
-pub trait Marker : Component + std::fmt::Debug + Clone + Send + Sync + 'static {
+pub trait Marker : Component 
+    + Clone
+    + Send
+    + Sync
+    + fmt::Debug
+    + cmp::Eq
+    + hash::Hash
+    + 'static
+{
+    fn marker() -> Self;
     fn team() -> Team;
     fn as_team(&self) -> Team {
         Self::team()
@@ -32,11 +45,17 @@ impl <T: Marker> From<T> for Team {
 }
 
 impl Marker for PlayerMarker {
+    fn marker() -> PlayerMarker {
+        PlayerMarker{}
+    }
     fn team() -> Team {
         Team::Player
     }
 }
 impl Marker for EnemyMarker {
+    fn marker() -> EnemyMarker {
+        EnemyMarker{}
+    }
     fn team() -> Team {
         Team::Enemy
     }
