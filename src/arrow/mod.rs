@@ -1,10 +1,12 @@
 mod chart;
+mod arrow;
+pub use arrow::{
+    Arrow,
+};
 mod spawner;
 pub use spawner::{
     ArrowSpawner,
     ArrowBuf,
-    Arrow,
-    SongFinishedEvent
 };
 mod timer;
 pub use timer::{
@@ -15,8 +17,6 @@ mod chart_loader;
 pub use chart_loader::{
     LoadChartEvent
 };
-mod chart_selector;
-
 
 //
 // Our imports
@@ -37,6 +37,18 @@ use crate::layout::{
 fn world() -> BBox {
     crate::world()
 }
+
+#[derive(Event)]
+#[derive(Debug, Clone)]
+pub struct SongFinishedEvent<T: Marker> {
+    team: T,
+}
+impl <T: Marker> SongFinishedEvent<T> {
+    pub fn create(team: T) -> Self {
+        Self { team }
+    }
+}
+
 
 #[derive(Debug,Clone,Eq,PartialEq,Hash)]
 #[derive(States)]
@@ -181,7 +193,6 @@ impl Plugin for ArrowsPlugin {
         ;
         app
             .add_plugins(chart_loader::ChartLoaderPlugin)
-            .add_plugins(chart_selector::ChartSelectorPlugin)
         ;
     }
 }

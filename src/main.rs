@@ -9,6 +9,7 @@ mod input;
 mod team_markers;
 mod remote;
 mod widgets;
+mod selector_menu;
 
 use std::path::PathBuf;
 
@@ -190,6 +191,7 @@ fn main() -> Result<()> {
         .add_plugins(input::InputPlugin)
         .add_plugins(remote::RemoteUserPlugin)
         .add_plugins(widgets::WidgetsPlugin)
+        .add_plugins(selector_menu::ChartSelectorPlugin)
 
         // Systems
         .add_systems(Startup, setup)
@@ -199,7 +201,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands, _asset_server: Res<AssetServer>) {
     let mut cam = Camera2dBundle::default();
     cam.projection.scaling_mode = bevy::render::camera::ScalingMode::Fixed {
         width: world().width(),
