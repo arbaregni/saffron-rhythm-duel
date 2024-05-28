@@ -23,6 +23,7 @@ use url::Url;
 use crate::{
     ConnectionMode,
     CliArgs,
+    settings::Config,
 };
 
 use super::{
@@ -45,7 +46,7 @@ pub struct Comms {
     _runtime: tokio::runtime::Runtime,
 }
 impl Comms {
-    pub fn init(cli: &CliArgs) -> Self {
+    pub fn init(cli: &CliArgs, config: &Config) -> Self {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_io()
             .build()
@@ -69,9 +70,9 @@ impl Comms {
         };
 
         match &cli.mode {
-            Some(ConnectionMode::Listen { port }) => {
-                // if supplying zero, the OS will give us a port to use
-                let port = port.unwrap_or(0);
+            ConnectionMode::Listen { port } => {
+                // specify on the command line, or fall back to the configured settings
+                let port = port.unwrap_or(config.port);
 
                 let ip = IpAddr::from([127u8, 0, 0, 1]);
                 let listen_at = SocketAddr::new(ip, port);
@@ -82,14 +83,9 @@ impl Comms {
                 let task = ctn.listen_for_incoming(listen_at);
                 rt.spawn(task);
             }
-            Some(ConnectionMode::Connect { remote_url }) => {
+            ConnectionMode::Connect { remote_url } => {
                 let task = ctn.connect_to_remote(remote_url.clone());
                 rt.spawn(task);
-            }
-            None => {
-                // bleh, just do nothing.
-                // this drops the connection so we'll see some errors logged,
-                // but everything should be fine.
             }
         }
 

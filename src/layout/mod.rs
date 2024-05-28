@@ -20,7 +20,8 @@ pub use song_panel::{
 };
 
 use crate::{
-    Config, CliArgs,
+    settings::Config,
+    CliArgs,
 };
 use crate::team_markers::{
     PlayerMarker,

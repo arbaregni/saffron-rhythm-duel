@@ -2,7 +2,7 @@ use bevy::{
     prelude::*,
 };
 
-use crate::{
+use crate::settings::{
     Config,
     KeyBindings
 };

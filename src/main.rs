@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+mod settings;
 mod logging;
 mod arrow;
 mod lane;
@@ -14,21 +15,24 @@ mod selector_menu;
 
 use std::path::PathBuf;
 
-use anyhow::{Result, Context};
+use anyhow::Result;
 use bevy::prelude::*;
 use clap::{
     Subcommand,
     Parser,
 };
-use serde::Deserialize;
+use directories::ProjectDirs;
 
 use layout::BBox;
-use lane::Lane;
 
 pub const BACKGROUND_COLOR: Color = Color::rgb(27.0 / 255.0, 32.0 / 255.0, 33.0 / 255.0); // eerie black 
 
 pub fn world() -> BBox {
-    BBox::from_size(1600.0, 800.0) // cut in hhalf from world size;
+    BBox::from_size(1600.0, 800.0) // cut in half from world size;
+}
+
+pub fn project_dirs() -> Option<ProjectDirs> {
+    ProjectDirs::from("", "arbaregni", "saffron-rhythm-duel")
 }
 
 #[derive(Parser)]
@@ -36,61 +40,39 @@ pub fn world() -> BBox {
 #[derive(Debug)]
 #[command(version, about, arg_required_else_help=true, long_about = None)]
 struct CliArgs {
-    #[arg(long, value_name = "FILE", default_value = "assets/config.toml")]
-    config: PathBuf,
+    #[arg(long, value_name = "FILE")]
+    /// Supply to override the default settings directory.
+    settings: Option<PathBuf>,
 
     #[arg(long, value_parser=logging::parse_log_filter, num_args = 0.., value_delimiter = ',', help=logging::LOG_FILTER_HELP_MESSAGE)]
     log_filters: Option<Vec<logging::LogFilter>>,
 
     #[arg(short, long)]
+    /// Enable debug messaging
     debug: bool,
 
     #[command(subcommand)]
-    mode: Option<ConnectionMode>,
+    /// What mode to run in
+    mode: ConnectionMode,
 }
 
 #[derive(Subcommand)]
 #[derive(Debug,Clone)]
+#[command(arg_required_else_help=true)]
 enum ConnectionMode {
+    /// Listen for the remote user to connect to you.
     Listen {
-        /// The port to listen on. If not supplied, the operating system will choose.
+        /// Supply this parameter to override the configured settings default port.
         /// Your remote partner will need this port and your IP address to connect.
         #[arg(long)]
         port: Option<u16>,
     },
+    /// Connect to a remote host.
     Connect {
         /// Attempts to connect to a remote URL.
         /// Should be in the format of `ws://<IP>:<PORT>, where <IP> and <PORT> are provided by
         /// your remote partner.
         remote_url: url::Url,
-    }
-}
-
-
-
-#[derive(Debug)]
-#[derive(Resource)]
-#[derive(Deserialize)]
-struct Config {
-    keybindings: KeyBindings
-}
-#[derive(Debug)]
-#[derive(Deserialize)]
-#[allow(non_snake_case)]
-struct KeyBindings {
-    lane_hit_L1: String,
-    lane_hit_L2: String,
-    lane_hit_R1: String,
-    lane_hit_R2: String,
-}
-impl KeyBindings {
-    fn key_name(&self, lane: Lane) -> &str {
-        match lane {
-            Lane::L1 => self.lane_hit_L1.as_str(),
-            Lane::L2 => self.lane_hit_L2.as_str(),
-            Lane::R1 => self.lane_hit_R1.as_str(),
-            Lane::R2 => self.lane_hit_R2.as_str(),
-        }
     }
 }
 
@@ -115,17 +97,13 @@ fn make_window_plugin() -> bevy::window::WindowPlugin {
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
 
+    let config = settings::load_settings(&cli)?;
+
     logging::configure_logging(&cli)?;
-
-
-    log::info!("Reading config file...");
-    let config_str = std::fs::read_to_string(&cli.config)
-        .with_context(|| format!("Parsing config file"))?;
-    let config: Config = toml::from_str(config_str.as_ref())?;
 
     log::info!("Initializing app...");
 
-    let comms = remote::communicate::Comms::init(&cli);
+    let comms = remote::communicate::Comms::init(&cli, &config);
 
     App::new()
         // Load resources

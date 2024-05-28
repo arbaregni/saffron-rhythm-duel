@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use crate::{
-    Config, CliArgs
+    settings::Config,
+    CliArgs
 };
 
 use crate::lane::{
