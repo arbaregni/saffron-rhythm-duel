@@ -26,7 +26,8 @@ use crate::{
 };
 
 use super::{
-    GameMessage
+    GameMessage,
+    widgets::NetStatus,
 };
 
 #[derive(Resource)]
@@ -38,7 +39,7 @@ pub struct Comms {
     /// Channel that sends the local user's GameMessages
     send_msg: Option<mpsc::Sender<GameMessage>>,
     /// Channel that receives status updates from the background tasks
-    pub (in crate::remote) status_rx: Option<mpsc::Receiver<String>>,
+    pub (in crate::remote) status_rx: Option<mpsc::Receiver<NetStatus>>,
 
     /// Keep the tokio runtime around that is computing our background tasks.
     _runtime: tokio::runtime::Runtime,
@@ -146,11 +147,21 @@ type WsMessageResult = Result<WsMessage, tungstenite::error::Error>;
 struct ConnectionContext {
     incoming_tx: mpsc::Sender<GameMessage>,
     outgoing_rx: mpsc::Receiver<GameMessage>,
-    status_tx: mpsc::Sender<String>,
+    status_tx: mpsc::Sender<NetStatus>,
 }
 impl ConnectionContext {
+    async fn update_status(&mut self, msg: NetStatus) {
+        match self.status_tx.send(msg).await {
+            Ok(_) => {},
+            Err(e) => {
+                log::error!("error updating status at status_tx: {e}");
+            }
+        }
+    }
     async fn listen_for_incoming(mut self, listen_at: SocketAddr) {
-        self.status_tx.send(format!("attempting to listening at {listen_at}")).await;
+        self.update_status(NetStatus::Listening(format!(
+            "attempting to listen at {listen_at}"
+        ))).await;
 
         let Ok(listener) = TcpListener::bind(listen_at).await
             .inspect_err(|e| log::error!("failed to bind to {listen_at}: {e}"))
@@ -164,13 +175,17 @@ impl ConnectionContext {
 
         loop {
             log::info!("waiting for a connection on {local_addr}");
-            self.status_tx.send(format!("waiting for a connection on {local_addr}")).await;
+            self.update_status(NetStatus::Listening(format!(
+                "waiting for a connection on {local_addr}"
+            ))).await;
 
             let stream = match listener.accept().await {
                 Ok((stream, _)) => stream,
                 Err(e) => {
                     log::error!("failed to connect: {e}");
-                    self.status_tx.send(format!("[ERROR] failed to connect: {e}")).await;
+                    self.update_status(NetStatus::Error(format!(
+                        "failed to accept connection: {e}"
+                    ))).await;
                     continue;
                 }
             };
@@ -181,7 +196,9 @@ impl ConnectionContext {
                 Ok(ws) => ws,
                 Err(e) => {
                     log::error!("failed to upgrade websocket: {e}");
-                    self.status_tx.send(format!("[ERROR] failed to upgrade websocket: {e}")).await;
+                    self.update_status(NetStatus::Error(format!(
+                        "failed to upgrade connection: {e}"
+                    ))).await;
                     continue;
                 }
             };
@@ -198,13 +215,17 @@ impl ConnectionContext {
     async fn connect_to_remote(mut self, remote: Url) {
         loop {
             log::info!("attempting to connect to remote");
-            self.status_tx.send(format!("attempting to connect to remote")).await;
+            self.update_status(NetStatus::Connecting(format!(
+                "attempting to connect to {remote}"
+            ))).await;
 
             let ws_stream = match tokio_tungstenite::connect_async(remote.clone()).await {
                 Ok((ws, _)) => ws,
                 Err(e) => {
                     log::error!("failed to connect to remote: {e}");
-                    self.status_tx.send(format!("[ERROR] failed to connect to remote: {e}")).await;
+                    self.update_status(NetStatus::Error(format!(
+                        "failed to connect to remote: {e}"
+                    ))).await;
                     // TODO: maybe a more graceful way of retrying this
                     return;
                 }
@@ -225,7 +246,7 @@ impl ConnectionContext {
         let (mut ws_write, mut ws_read) = ws_stream.split();
 
         log::info!("handling connection");
-        self.status_tx.send(format!("connected")).await;
+        self.update_status(NetStatus::Connected).await;
 
         loop {
             tokio::select! {
@@ -296,7 +317,7 @@ impl ConnectionContext {
                 } // end tokio::select!
             } // end loop
 
-            self.status_tx.send(format!("disconnected")).await;
+            self.update_status(NetStatus::Disconnected).await;
 
         }
 

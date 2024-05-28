@@ -18,7 +18,17 @@ use super::{
 
 #[derive(Component)]
 struct StatusText {
+    last_updated: f32,
+    status: NetStatus,
+}
 
+#[derive(Debug,Clone)]
+pub enum NetStatus {
+    Disconnected,
+    Connected,
+    Listening(String),
+    Connecting(String),
+    Error(String),
 }
 
 pub fn setup_networking_status_text (
@@ -27,13 +37,13 @@ pub fn setup_networking_status_text (
     panel_query: Query<&SongPanel, With<EnemyMarker>>,
 ) {
     let font = asset_server.load(crate::BASE_FONT_NAME);
-    let font_size = 100.0;
+    let font_size = 60.0;
     let color = Color::rgb(0.9, 0.9, 0.9); // off white is a nice text color with this
                                            // backgournd
 
     let panel = panel_query.single();
 
-    let text_content = "'ello govner".to_string();
+    let text_content = "".to_string();
 
     let mut pos = panel.bounds().center();
     pos.z = Layer::TextAlerts.z();
@@ -54,7 +64,10 @@ pub fn setup_networking_status_text (
         ..default()
     };
 
-    let status_text = StatusText{};
+    let status_text = StatusText {
+        last_updated: 0.0,
+        status: NetStatus::Disconnected,
+    };
 
     commands.spawn((
         EnemyMarker,
@@ -71,10 +84,10 @@ pub fn setup_networking_status_text (
 }
 
 fn update_status_text(
-    mut text_q: Query<(&mut Text, &StatusText)>,
+    mut text_q: Query<(&mut Text, &mut StatusText)>,
     mut comms: ResMut<Comms>,
 ) {
-    let (mut text, _status_text) = text_q.single_mut();
+    let (mut text, mut status_text) = text_q.single_mut();
 
     let Some(status_rx) = comms.status_rx.as_mut() else {
         // nothing to do
@@ -82,7 +95,7 @@ fn update_status_text(
     };
 
     use tokio::sync::mpsc::error::TryRecvError;
-    let content = match status_rx.try_recv() {
+    let status = match status_rx.try_recv() {
         Ok(c) => c,
         Err(TryRecvError::Disconnected) => {
             log::error!("status_rx disconnected");
@@ -94,8 +107,23 @@ fn update_status_text(
             return
         }
     };
+    status_text.status = status;
 
-    text.sections[0].value = content;
+    match &status_text.status {
+        NetStatus::Disconnected | NetStatus::Connected => {
+            // nothing to do
+        }
+        NetStatus::Error(content) => {
+            text.sections[0].value.clear();
+            text.sections[0].value.push_str("[ERROR] ");
+            text.sections[0].value.push_str(content.as_str());
+        }
+        NetStatus::Listening(content) | NetStatus::Connecting(content) => {
+            text.sections[0].value.clear();
+            text.sections[0].value.push_str(content.as_str());
+        }
+    }
+
 }
 
 

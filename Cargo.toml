@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.81", features = ["backtrace"] }
+# dynamic linking for faster build
 bevy = { version = "0.13.1", features = ["dynamic_linking", "shader_format_glsl"] }
 clap = { version = "4.5.4", features = ["derive"] }
 directories = "5.0.1"
