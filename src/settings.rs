@@ -1,6 +1,7 @@
 use std::{
     fs,
-    path::{Path, PathBuf}
+    path::{Path, PathBuf},
+    net::IpAddr,
 };
 
 use anyhow::{
@@ -20,16 +21,28 @@ use crate::{
 
 #[derive(Debug, Serialize, Deserialize)]
 #[derive(Resource)]
+/// For user defined settings
 pub struct Config {
+    /// The key bindings for common keys
     pub keybindings: KeyBindings,
-    #[serde(default)]
+    #[serde(default = "default_port")]
     pub port: u16,
+    #[serde(default = "default_host_addr")]
+    pub host_addr: IpAddr,
+}
+
+fn default_port() -> u16 {
+    8080
+}
+fn default_host_addr() -> IpAddr {
+    IpAddr::from([0,0,0,0])
 }
 
 impl std::default::Default for Config {
     fn default() -> Self {
         Self {
-            port: 8080,
+            port: default_port(),
+            host_addr: default_host_addr(),
             ..default()
         }
     }
@@ -94,14 +107,14 @@ pub fn load_settings(cli: &CliArgs) -> Result<Config> {
 
         config
     } else {
-        log::info!("settings file does not exist at {display_path}, creating it now");
-
-        let config = Config::default();
-
-        store_settings(cli, &config)?;
-
-        config
+        log::info!("settings file does not exist at {display_path}, using defaults");
+        Config::default()
     };
+
+    log::debug!("loaded settings: {config:?}");
+
+    // we write them back in case we picked up any defaults or fields were missing
+    store_settings(cli, &config)?;
 
     Ok(config)
 }

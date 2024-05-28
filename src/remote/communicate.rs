@@ -74,7 +74,7 @@ impl Comms {
                 // specify on the command line, or fall back to the configured settings
                 let port = port.unwrap_or(config.port);
 
-                let ip = IpAddr::from([127u8, 0, 0, 1]);
+                let ip = config.host_addr;
                 let listen_at = SocketAddr::new(ip, port);
 
                 // local game events -> outgoing remote messages

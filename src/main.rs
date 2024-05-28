@@ -44,7 +44,15 @@ struct CliArgs {
     /// Supply to override the default settings directory.
     settings: Option<PathBuf>,
 
-    #[arg(long, value_parser=logging::parse_log_filter, num_args = 0.., value_delimiter = ',', help=logging::LOG_FILTER_HELP_MESSAGE)]
+    #[arg(long, default_value_t = logging::LevelFilter::INFO)]
+    /// Sets the default log level to report to stdout.
+    log_level: logging::LevelFilter,
+
+    #[arg(long, value_parser=logging::parse_log_filter, num_args = 0.., value_delimiter = ',')]
+    /// Specify one or more log filters, separated by commas.
+    /// Log filters are a rust module path (excluding the project name), e.g. `judgement::metrics'.
+    /// Optionally, you may include an equal sign and one of OFF, DEBUG, INFO, WARN, or ERROR to specify the level of logging to filter out.
+    /// For example, `judgement::metrics=OFF`.
     log_filters: Option<Vec<logging::LogFilter>>,
 
     #[arg(short, long)]
@@ -97,9 +105,10 @@ fn make_window_plugin() -> bevy::window::WindowPlugin {
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
 
+    logging::configure_logging(&cli)?;
+
     let config = settings::load_settings(&cli)?;
 
-    logging::configure_logging(&cli)?;
 
     log::info!("Initializing app...");
 
