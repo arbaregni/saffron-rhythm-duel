@@ -91,7 +91,7 @@ where T: Component + Copy
     pub fn setup_lane_letters(self) -> Self {
         for (lane, bounds) in self.panel.lanes().iter() {
 
-            let text_content = self.config.keybindings.key_name(lane).to_uppercase();
+            let text_content = self.settings.keybindings.key_name(lane).to_uppercase();
 
             let font = self.asset_server.load(crate::BASE_FONT_NAME);
             let font_size = 50.0;

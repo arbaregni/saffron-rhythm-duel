@@ -20,7 +20,7 @@ pub use song_panel::{
 };
 
 use crate::{
-    settings::Config,
+    settings::UserSettings,
     CliArgs,
 };
 use crate::team_markers::{
@@ -39,7 +39,7 @@ pub enum LayoutState {
 fn setup_layout(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    config: Res<Config>,
+    settings: Res<UserSettings>,
     cli: Res<CliArgs>,
     mut state: ResMut<NextState<LayoutState>>,
 ) {
@@ -51,7 +51,7 @@ fn setup_layout(
         .build(PlayerMarker, 
                &mut commands,
                asset_server.as_ref(),
-               config.as_ref(),
+               settings.as_ref(),
                cli.as_ref(),
         )
         // creates all the associated resources
@@ -65,7 +65,7 @@ fn setup_layout(
         .build(EnemyMarker,
                &mut commands,
                asset_server.as_ref(),
-               config.as_ref(),
+               settings.as_ref(),
                cli.as_ref(),
         )
         .setup_lane_targets()

@@ -22,7 +22,7 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize)]
 #[derive(Resource)]
 /// For user defined settings
-pub struct Config {
+pub struct UserSettings {
     /// The key bindings for common keys
     pub keybindings: KeyBindings,
     #[serde(default = "default_port")]
@@ -38,7 +38,7 @@ fn default_host_addr() -> IpAddr {
     IpAddr::from([0,0,0,0])
 }
 
-impl std::default::Default for Config {
+impl std::default::Default for UserSettings {
     fn default() -> Self {
         Self {
             port: default_port(),
@@ -93,37 +93,37 @@ fn settings_path(cli: &CliArgs) -> PathBuf {
         .join(SETTINGS_FILENAME)
 }
 
-pub fn load_settings(cli: &CliArgs) -> Result<Config> {
+pub fn load_settings(cli: &CliArgs) -> Result<UserSettings> {
     let path = settings_path(cli);
     let display_path = path.display();
 
-    let config = if !path.exists() {
+    let settings = if !path.exists() {
         log::info!("settings file does not exist at {display_path}, using defaults");
-        Config::default()
+        UserSettings::default()
     } else if cli.reset_to_default_settings {
         log::info!("cli argument reset-to-default-settings was passed, using the defaults");
-        Config::default()
+        UserSettings::default()
     } else {
         log::info!("Reading settings from {display_path}...");
         let contents = fs::read_to_string(&path)
             .with_context(|| format!("reading settings file at {display_path}"))?;
 
-        let config = toml::from_str(contents.as_ref())
+        let settings = toml::from_str(contents.as_ref())
             .with_context(|| format!("deserializing settings.toml file at {display_path}"))?;
 
-        config
+        settings
     };
 
-    log::debug!("loaded settings: {config:?}");
+    log::debug!("loaded settings: {settings:?}");
 
     log::info!("storing settings");
     // we write them back in case we picked up any defaults or fields were missing
-    store_settings(cli, &config)?;
+    store_settings(cli, &settings)?;
 
-    Ok(config)
+    Ok(settings)
 }
 
-pub fn store_settings(cli: &CliArgs, config: &Config) -> Result<()> {
+pub fn store_settings(cli: &CliArgs, settings: &UserSettings) -> Result<()> {
     let path = settings_path(cli);
 
     let parent = path.parent().unwrap_or(path.as_path());
@@ -133,7 +133,7 @@ pub fn store_settings(cli: &CliArgs, config: &Config) -> Result<()> {
 
     log::debug!("about to deserialize contents");
 
-    let contents = toml::to_string(config)
+    let contents = toml::to_string(settings)
         .with_context(|| format!("serializing current settings"))?;
 
     fs::write(&path, contents.as_str())

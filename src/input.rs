@@ -3,7 +3,7 @@ use bevy::{
 };
 
 use crate::settings::{
-    Config,
+    UserSettings,
     KeyBindings
 };
 use crate::lane::{
@@ -37,14 +37,14 @@ pub struct InputManager {
 }
 
 #[allow(non_snake_case)]
-fn setup_input_manager(mut commands: Commands, config: Res<Config>) {
+fn setup_input_manager(mut commands: Commands, settings: Res<UserSettings>) {
     let KeyBindings {
         lane_hit_L1,
         lane_hit_L2,
         lane_hit_R1,
         lane_hit_R2,
         ..
-    } = &config.keybindings;
+    } = &settings.keybindings;
 
     
     let lane_hit_keycodes = LaneMap::from([

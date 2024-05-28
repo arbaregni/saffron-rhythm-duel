@@ -22,7 +22,7 @@ use url::Url;
 use crate::{
     ConnectionMode,
     CliArgs,
-    settings::Config,
+    settings::UserSettings,
 };
 
 use super::{
@@ -45,7 +45,7 @@ pub struct Comms {
     _runtime: tokio::runtime::Runtime,
 }
 impl Comms {
-    pub fn init(cli: &CliArgs, config: &Config) -> Self {
+    pub fn init(cli: &CliArgs, settings: &UserSettings) -> Self {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_io()
             .build()
@@ -70,10 +70,10 @@ impl Comms {
 
         match &cli.mode {
             ConnectionMode::Listen { port } => {
-                // specify on the command line, or fall back to the configured settings
-                let port = port.unwrap_or(config.port);
+                // specify on the command line, or fall back to the settingsured settings
+                let port = port.unwrap_or(settings.port);
 
-                let ip = config.host_addr;
+                let ip = settings.host_addr;
                 let listen_at = SocketAddr::new(ip, port);
 
                 // local game events -> outgoing remote messages
@@ -120,7 +120,7 @@ impl Comms {
         let Some(send_msg) = self.send_msg.as_mut()
             // if the channel's dropped, just return silently.
             else { 
-                bevy::log::warn_once!("no channel (outgoing_tx) configured");
+                bevy::log::warn_once!("no channel (outgoing_tx) settingsured");
                 return;
             };
         
