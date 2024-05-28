@@ -93,6 +93,8 @@ fn make_window_plugin() -> bevy::window::WindowPlugin {
         title: "Saffron Rhythm Duel".to_string(),
         resolution: (world().width(), world().height()).into(),
         window_theme: Some(WindowTheme::Dark),
+        present_mode: PresentMode::AutoVsync,
+        mode: WindowMode::BorderlessFullscreen,
         ..default()
     };
     WindowPlugin {
