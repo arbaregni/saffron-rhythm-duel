@@ -2,7 +2,6 @@ use bevy::prelude::*;
 
 use std::net::{
     SocketAddr,
-    IpAddr,
 };
 
 use futures_util::{

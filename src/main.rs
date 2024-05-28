@@ -59,6 +59,10 @@ struct CliArgs {
     /// Enable debug messaging
     debug: bool,
 
+    #[arg(long)]
+    /// Force the program to reset the settings to defaults on load.
+    reset_to_default_settings: bool,
+
     #[command(subcommand)]
     /// What mode to run in
     mode: ConnectionMode,

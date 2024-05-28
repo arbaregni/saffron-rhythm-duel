@@ -43,7 +43,7 @@ impl std::default::Default for Config {
         Self {
             port: default_port(),
             host_addr: default_host_addr(),
-            ..default()
+            keybindings: KeyBindings::default(),
         }
     }
 }
@@ -97,22 +97,26 @@ pub fn load_settings(cli: &CliArgs) -> Result<Config> {
     let path = settings_path(cli);
     let display_path = path.display();
 
-    let config = if path.exists() {
+    let config = if !path.exists() {
+        log::info!("settings file does not exist at {display_path}, using defaults");
+        Config::default()
+    } else if cli.reset_to_default_settings {
+        log::info!("cli argument reset-to-default-settings was passed, using the defaults");
+        Config::default()
+    } else {
         log::info!("Reading settings from {display_path}...");
         let contents = fs::read_to_string(&path)
             .with_context(|| format!("reading settings file at {display_path}"))?;
 
-
-        let config = toml::from_str(contents.as_ref())?;
+        let config = toml::from_str(contents.as_ref())
+            .with_context(|| format!("deserializing settings.toml file at {display_path}"))?;
 
         config
-    } else {
-        log::info!("settings file does not exist at {display_path}, using defaults");
-        Config::default()
     };
 
     log::debug!("loaded settings: {config:?}");
 
+    log::info!("storing settings");
     // we write them back in case we picked up any defaults or fields were missing
     store_settings(cli, &config)?;
 
@@ -127,8 +131,13 @@ pub fn store_settings(cli: &CliArgs, config: &Config) -> Result<()> {
     fs::create_dir_all(parent)
         .with_context(|| format!("storing settings to {}", parent.display()))?;
 
-    let contents = toml::to_string(config)?;
+    log::debug!("about to deserialize contents");
+
+    let contents = toml::to_string(config)
+        .with_context(|| format!("serializing current settings"))?;
+
     fs::write(&path, contents.as_str())
-        .with_context(|| format!("writing to {}", path.display()))?; 
+        .with_context(|| format!("writing settings to {}", path.display()))?; 
+
     Ok(())
 }

@@ -1,3 +1,8 @@
+use std::path::{
+    Path,
+    PathBuf
+};
+
 use anyhow::{
     Result,
     Context
@@ -79,6 +84,8 @@ pub fn configure_logging(cli: &CliArgs) -> Result<()> {
 
     };
 
+    // TODO: log more things to a file
+
     tracing_subscriber::registry()
         .with(
             stdout_log
@@ -87,5 +94,23 @@ pub fn configure_logging(cli: &CliArgs) -> Result<()> {
         .init();
     
     Ok(())
+}
+
+
+const MAX_LOG_RUNS_SAVED: usize = 10;
+const LOG_FOLDER_NAME: &str = "logs";
+
+fn log_folder_path(cli: &CliArgs) -> PathBuf {
+    // first try the cli arguments
+    cli.settings.clone()
+        // if that doesn't work, then check the project directory
+        .or_else(|| {
+            crate::project_dirs()
+                .map(|p| p.cache_dir().to_path_buf())
+        })
+        // and if that fails, then we just default to the current working directory
+        .unwrap_or(Path::new(".").to_path_buf())
+        // and then we join it with the settings file
+        .join("logs")
 }
 
