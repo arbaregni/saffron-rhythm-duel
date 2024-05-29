@@ -1,6 +1,12 @@
-use std::path::{
-    Path,
-    PathBuf
+use std::{
+    path::{
+        Path,
+        PathBuf
+    },
+    fs::{
+        self,
+        File
+    },
 };
 
 use anyhow::{
@@ -85,14 +91,28 @@ pub fn configure_logging(cli: &CliArgs) -> Result<()> {
     };
 
     // TODO: log more things to a file
+    let (log_file, log_filepath) = rolling_log_file(cli)?;
+
+    let debug_log = tracing_subscriber::fmt::layer()
+        .compact()
+        .with_ansi(false)
+        .with_level(true)
+        .with_thread_names(true)
+        .with_file(true)
+        .with_writer(std::sync::Arc::new(log_file));
 
     tracing_subscriber::registry()
         .with(
             stdout_log
                 .with_filter(targets)
         )
+        .with(
+            debug_log
+        )
         .init();
     
+    log::info!("logging to {}", log_filepath.display());
+
     Ok(())
 }
 
@@ -112,5 +132,52 @@ fn log_folder_path(cli: &CliArgs) -> PathBuf {
         .unwrap_or(Path::new(".").to_path_buf())
         // and then we join it with the settings file
         .join("logs")
+}
+
+fn rolling_log_file(cli: &CliArgs) -> Result<(File, PathBuf)> {
+    let log_folder = log_folder_path(cli);
+
+    if !log_folder.exists() {
+        // make sure it exists
+        fs::create_dir_all(&log_folder)
+            .with_context(|| format!("creating log folder at {}", log_folder.display()))?;
+    }
+
+    // clear out space for the new file
+
+    let mut read_dir = fs::read_dir(&log_folder)
+        .with_context(|| format!("reading log folder at {}", log_folder.display()))?
+        .collect::<Result<Vec<_>, _>>()
+            .with_context(|| format!("reading log folder at {}", log_folder.display()))?;
+
+    read_dir.sort_by_key(|entry| {
+        entry.path()
+             .file_stem()
+             .and_then(|s| s.to_str())
+             .unwrap_or("")
+             .to_string()
+    });
+    read_dir.reverse();
+
+    // include the last item because we need to make room for 1 more entry
+    let to_be_deleted = (MAX_LOG_RUNS_SAVED - 1)..read_dir.len();
+
+    for i in to_be_deleted {
+        let path = read_dir[i].path();
+        fs::remove_file(&path)
+            .with_context(|| format!("attempting to remove old log file"))?;
+    }
+
+
+    // create the new file
+
+    let now = chrono::Utc::now();
+    let filename = format!("game-run-{}.log", now.format("%Y-%m-%d-%H-%M-%S"));
+    let filepath = log_folder.join(filename);
+
+    let file = File::create(&filepath)
+        .with_context(|| format!("creating new log in {}", log_folder.display()))?;
+
+    Ok((file, filepath))
 }
 
