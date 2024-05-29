@@ -8,21 +8,18 @@ use serde::{
 use crate::lane::{
     Lane
 };
+use crate::input::{
+    LaneHit,
+    RemoteLaneHit
+};
+use crate::judgement::{
+    SuccessGrade,
+};
 
 pub mod communicate;
 pub mod widgets;
 pub mod translate;
 
-#[derive(Event)]
-#[derive(Debug)]
-pub struct RemoteLaneHit {
-    lane: Lane
-}
-impl RemoteLaneHit {
-    pub fn lane(&self) -> Lane {
-        self.lane
-    }
-}
 /// Message sent from user to user to communicate game state.
 /// We will use this for local -> remote and remote -> local
 /// since comms are meant to be symmetric
@@ -36,8 +33,8 @@ pub enum GameMessage {
         chart_name: String
     },
     CorrectHit {
-        lane_hit: crate::input::LaneHit,
-        grade: crate::judgement::SuccessGrade,
+        lane_hit: LaneHit,
+        grade: SuccessGrade,
     },
 }
 

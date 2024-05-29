@@ -14,24 +14,46 @@ use crate::lane::{
     Lane,
     LaneMap,
 };
+use crate::team_markers::{
+    Marker,
+    PlayerMarker,
+    EnemyMarker,
+};
 
 /// Represents a user attempting to complete the note in a lane.
 #[derive(Event)]
 #[derive(Debug,Clone,Deserialize,Serialize)]
-pub struct LaneHit {
+pub struct RawLaneHit<T: Marker> {
     /// Lane that was hit
     lane: Lane,
     /// When the key was pressed
     time_of_hit: f32,
+    /// The team (local or remote) that made the hit
+    team: T,
 }
-impl LaneHit {
+impl <T: Marker> RawLaneHit<T> {
+    pub fn from(lane: Lane, time_of_hit: f32) -> RawLaneHit<T> {
+        Self {
+            lane,
+            time_of_hit,
+            team: T::marker()
+        }
+    }
     pub fn lane(&self) -> Lane {
         self.lane
     }
     pub fn time_of_hit(&self) -> f32 {
         self.time_of_hit
     }
+    pub fn team(&self) -> T {
+        self.team.clone()
+    }
 }
+
+// For convienience
+pub type LaneHit = RawLaneHit<PlayerMarker>;
+pub type RemoteLaneHit = RawLaneHit<EnemyMarker>;
+
 
 #[derive(Resource)]
 #[allow(non_snake_case)]
@@ -77,7 +99,8 @@ fn listen_for_input(
         .filter(|(_lane, &keycode)| keys.just_pressed(keycode))
         .map(|(lane, _keycode)| LaneHit {
             lane,
-            time_of_hit: now
+            time_of_hit: now,
+            team: PlayerMarker{}
         })
         .for_each(|ev| {
             log::debug!("Sending lane hit event");

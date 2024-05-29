@@ -3,19 +3,23 @@ use std::{
 };
 
 use bevy::prelude::*;
+use serde::{
+    Deserialize,
+    Serialize
+};
 
-// Put this component on entities owned by the local user
 #[derive(Component)]
-#[derive(Debug,Copy,Clone,PartialEq,Eq,Hash)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq,Hash,Deserialize,Serialize)]
+/// Put this component on entities owned by the local user
 pub struct PlayerMarker;
 
-// Plut this component on entities owned by the remote user
 #[derive(Component)]
-#[derive(Debug,Copy,Clone,PartialEq,Eq,Hash)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq,Hash,Deserialize,Serialize)]
+/// Put this component on entities owned by the remote user
 pub struct EnemyMarker;
 
+#[derive(Debug,Copy,Clone,PartialEq,Eq,Hash,Deserialize,Serialize)]
 /// Runtime available information on the object's side.
-#[derive(Debug,Copy,Clone,PartialEq,Eq,Hash)]
 pub enum Team {
     /// Local user.
     Player,

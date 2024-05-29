@@ -15,16 +15,18 @@ use super::{
     communicate::{
         Comms
     },
-    RemoteLaneHit,
     GameMessage
 };
 use crate::judgement::{
     CorrectHitEvent
 };
-
+use crate::input::{
+    RemoteLaneHit
+};
 
 /// GameMessages from remote become local game events
 pub fn translate_messages_from_remote(
+    time: Res<Time>,
     mut listener: ResMut<Comms>,
     mut remote_lane_hit: EventWriter<RemoteLaneHit>,
     mut remote_load_chart: EventWriter<LoadChartEvent<EnemyMarker>>,
@@ -33,13 +35,16 @@ pub fn translate_messages_from_remote(
         return; // nothing to do
     };
 
+    let now = time.elapsed().as_secs_f32();
+
     use GameMessage::*;
     match msg {
         LaneHit { lane } => {
             log::debug!("emitting remote lane hit");
-            remote_lane_hit.send(RemoteLaneHit {
-                lane
-            });
+            remote_lane_hit.send(RemoteLaneHit::from(
+                lane,
+                now
+            ));
         }
         LoadChart { chart_name } => {
             log::debug!("emitting remote chart load");

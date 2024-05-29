@@ -15,7 +15,7 @@ use bevy::{
 };
 
 use crate::input::{
-    LaneHit,
+    RawLaneHit,
 };
 use crate::team_markers::{
     PlayerMarker,
@@ -29,10 +29,6 @@ use crate::layout::{
     SongPanel,
     Layer,
 };
-use crate::remote::{
-    RemoteLaneHit
-};
-    
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 struct LaneBoxMaterial {
@@ -118,7 +114,7 @@ impl LaneBox {
     }
 }
 
-fn create_lane_box_on_press(
+fn create_lane_box_on_press<T: Marker>(
     // needed to spawn lane box
     mut commands: Commands,
     time: Res<Time>,
@@ -126,17 +122,14 @@ fn create_lane_box_on_press(
     mut materials: ResMut<Assets<LaneBoxMaterial>>,
 
     // needed to spawn inside a panel
-    player_panel: Query<&SongPanel, With<PlayerMarker>>,
-    enemy_panel: Query<&SongPanel, With<EnemyMarker>>,
+    panel: Query<&SongPanel, With<T>>,
 
     // listen for the triggers
-    mut input_events: EventReader<LaneHit>,
-    mut remote_input_events: EventReader<RemoteLaneHit>,
+    mut lane_hit_ev: EventReader<RawLaneHit<T>>,
 ) {
-    let player_panel = player_panel.single();
-    let enemy_panel = enemy_panel.single();
+    let panel = panel.single();
 
-    for ev in input_events.read() {
+    for ev in lane_hit_ev.read() {
         let lane = ev.lane();
 
         LaneBox::create(LaneBoxCreationArgs {
@@ -145,25 +138,12 @@ fn create_lane_box_on_press(
             meshes: meshes.as_mut(),
             materials: materials.as_mut(),
             lane,
-            panel: player_panel,
-            marker: PlayerMarker
+            panel,
+            marker: T::marker()
         });
 
     }
 
-    for ev in remote_input_events.read() {
-        let lane = ev.lane();
-        LaneBox::create(LaneBoxCreationArgs {
-            commands: &mut commands,
-            time: time.as_ref(),
-            meshes: meshes.as_mut(),
-            materials: materials.as_mut(),
-            lane,
-            panel: enemy_panel,
-            marker: EnemyMarker
-        });
-
-    }
 }
 
 fn animate_lane_boxes(
@@ -191,7 +171,8 @@ impl Plugin for LaneBoxPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(Material2dPlugin::<LaneBoxMaterial>::default())
-            .add_systems(Update, create_lane_box_on_press)
+            .add_systems(Update, create_lane_box_on_press::<PlayerMarker>)
+            .add_systems(Update, create_lane_box_on_press::<EnemyMarker>)
             .add_systems(Update, animate_lane_boxes)
         ;
     }
