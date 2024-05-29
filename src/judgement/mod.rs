@@ -2,6 +2,10 @@ mod metrics;
 mod feedback_text;
 mod sound_alerts;
 
+use serde::{
+    Deserialize,
+    Serialize
+};
 use bevy::prelude::*;
 
 use crate::team_markers::{
@@ -32,7 +36,7 @@ pub const KEYPRESS_TOLERANCE_SECS: f32 = 0.5; // in seconds
 /// Represents when the user hits the lane when an arrow is passing the target line, and it
 /// completes that arrow.
 #[derive(Event)]
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Deserialize,Serialize)]
 pub struct CorrectHitEvent {
     /// The lane hit
     pub lane_hit: LaneHit,
@@ -48,7 +52,7 @@ impl CorrectHitEvent {
 /// Represents when the user hits the lane, and there is a nearby note,
 /// But we don't want to count it as 'completing' that note.
 #[derive(Event)]
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Deserialize,Serialize)]
 pub struct IncorrectHitEvent {
     /// THe lane hit
     lane_hit: LaneHit,
@@ -59,13 +63,13 @@ pub struct IncorrectHitEvent {
 /// Event representing when the user attempts to complete a note, but are too early or late to be
 /// considered 'correct'
 #[derive(Event)]
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Deserialize,Serialize)]
 pub struct MissfireEvent {
     /// The lane hit that originated this missfire
     lane_hit: LaneHit,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug,Copy,Clone,Deserialize,Serialize)]
 pub enum SuccessGrade {
     Perfect,
     Good,
@@ -81,7 +85,7 @@ impl SuccessGrade {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug,Copy,Clone,Deserialize,Serialize)]
 pub enum FailingGrade {
     Early,
     Late,
@@ -286,7 +290,6 @@ fn despawn_arrows(
 pub struct JudgementPlugin;
 impl Plugin for JudgementPlugin {
     fn build(&self, app: &mut App) {
-        log::info!("building Judgement plugin...");
         app
             .add_event::<CorrectHitEvent>()
             .add_event::<IncorrectHitEvent>()

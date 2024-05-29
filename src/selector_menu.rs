@@ -243,7 +243,6 @@ fn interact_with_buttons(
 pub struct ChartSelectorPlugin;
 impl Plugin for ChartSelectorPlugin {
     fn build(&self, app: &mut App) {
-        log::info!("building chart selector plugin");
         app
             .init_state::<ChartSelectorState>()
             .add_systems(Update, enable_chart_selector_on_song_end::<PlayerMarker>)

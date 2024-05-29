@@ -23,7 +23,6 @@ impl RemoteLaneHit {
         self.lane
     }
 }
-
 /// Message sent from user to user to communicate game state.
 /// We will use this for local -> remote and remote -> local
 /// since comms are meant to be symmetric
@@ -35,13 +34,17 @@ pub enum GameMessage {
     },
     LoadChart {
         chart_name: String
-    }
+    },
+    CorrectHit {
+        lane_hit: crate::input::LaneHit,
+        grade: crate::judgement::SuccessGrade,
+    },
 }
+
 
 pub struct RemoteUserPlugin;
 impl Plugin for RemoteUserPlugin {
     fn build(&self, app: &mut App) {
-        log::info!("Building remote user plugin");
         app
             .add_event::<RemoteLaneHit>()
             .add_systems(Update, translate::translate_messages_from_remote)

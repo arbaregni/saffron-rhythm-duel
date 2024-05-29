@@ -242,7 +242,6 @@ fn cleanup_spawner<T: Marker>(
 pub struct ArrowsPlugin;
 impl Plugin for ArrowsPlugin {
     fn build(&self, app: &mut App) {
-        log::info!("building Arrow plugin...");
         self.build_for_team(app, PlayerMarker{})
             .build_for_team(app, EnemyMarker{})
         ;

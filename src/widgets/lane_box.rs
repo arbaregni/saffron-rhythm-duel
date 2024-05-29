@@ -189,7 +189,6 @@ fn animate_lane_boxes(
 pub struct LaneBoxPlugin;
 impl Plugin for LaneBoxPlugin {
     fn build(&self, app: &mut App) {
-        log::info!("building Targets plugin...");
         app
             .add_plugins(Material2dPlugin::<LaneBoxMaterial>::default())
             .add_systems(Update, create_lane_box_on_press)

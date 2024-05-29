@@ -1,3 +1,7 @@
+use serde::{
+    Deserialize,
+    Serialize
+};
 use bevy::{
     prelude::*,
 };
@@ -13,7 +17,7 @@ use crate::lane::{
 
 /// Represents a user attempting to complete the note in a lane.
 #[derive(Event)]
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,Deserialize,Serialize)]
 pub struct LaneHit {
     /// Lane that was hit
     lane: Lane,

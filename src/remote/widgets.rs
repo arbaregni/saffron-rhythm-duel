@@ -3,6 +3,10 @@ use bevy::text::{
     Text2dBounds
 };
 
+use crate::arrow::{
+    ArrowSpawner,
+    LoadChartEvent, 
+};
 use crate::layout::{
     Layer,
     SongPanel,
@@ -83,35 +87,52 @@ pub fn setup_networking_status_text (
     ));
 }
 
+fn update_status_text_on_remote_event(
+    mut text_q: Query<(&mut Text, &mut StatusText)>,
+    mut load_chart_ev: EventReader<LoadChartEvent<EnemyMarker>>,
+    comms: Res<Comms>,
+) {
+    if load_chart_ev.is_empty() {
+        return;
+    }
+    load_chart_ev.clear();
+
+    if !matches!(comms.net_status(), NetStatus::Connected) {
+        return;
+    }
+
+    let (mut text, _status_text) = text_q.single_mut();
+
+    // just clear it out when we load a chart
+    text.sections[0].value.clear();
+}
+
+
+
 fn update_status_text(
     mut text_q: Query<(&mut Text, &mut StatusText)>,
+    spawner_q: Query<&ArrowSpawner, With<EnemyMarker>>,
     mut comms: ResMut<Comms>,
 ) {
-    let (mut text, mut status_text) = text_q.single_mut();
+    let (mut text, _status_text) = text_q.single_mut();
 
-    let Some(status_rx) = comms.status_rx.as_mut() else {
-        // nothing to do
-        return
-    };
+    let no_song_yet = spawner_q.is_empty();
 
-    use tokio::sync::mpsc::error::TryRecvError;
-    let status = match status_rx.try_recv() {
-        Ok(c) => c,
-        Err(TryRecvError::Disconnected) => {
-            log::error!("status_rx disconnected");
-            comms.status_rx = None;
-            return
+    if !comms.update_net_status().is_changed() {
+        // nothing to do. no sense rewriting anything
+        return;
+    }
+
+    match comms.net_status() {
+        NetStatus::Disconnected => {
+            text.sections[0].value.clear();
+            text.sections[0].value.push_str("disconnected");
         }
-        _ => {
-            // nothing to do
-            return
-        }
-    };
-    status_text.status = status;
-
-    match &status_text.status {
-        NetStatus::Disconnected | NetStatus::Connected => {
-            // nothing to do
+        NetStatus::Connected => {
+            text.sections[0].value.clear();
+            if no_song_yet {
+                text.sections[0].value.push_str("waiting for remote user to select a song");
+            }
         }
         NetStatus::Error(content) => {
             text.sections[0].value.clear();
@@ -124,6 +145,10 @@ fn update_status_text(
         }
     }
 
+    if matches!(comms.net_status(), NetStatus::Connected) {
+        log::info!("new connection");
+    }
+
 }
 
 
@@ -134,6 +159,7 @@ impl Plugin for NetworkingWidgetsPlugin {
         app
             .add_systems(OnEnter(LayoutState::Done), setup_networking_status_text)
             .add_systems(Update, update_status_text)
+            .add_systems(Update, update_status_text_on_remote_event)
         ;
     }
 }

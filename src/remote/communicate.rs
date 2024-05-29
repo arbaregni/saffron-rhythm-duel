@@ -40,6 +40,8 @@ pub struct Comms {
     send_msg: Option<mpsc::Sender<GameMessage>>,
     /// Channel that receives status updates from the background tasks
     pub (in crate::remote) status_rx: Option<mpsc::Receiver<NetStatus>>,
+    
+    net_status: NetStatus,
 
     /// Keep the tokio runtime around that is computing our background tasks.
     _runtime: tokio::runtime::Runtime,
@@ -92,9 +94,39 @@ impl Comms {
             receive_msg: Some(incoming_rx),
             send_msg: Some(outgoing_tx),
             status_rx: Some(status_rx),
+            net_status: NetStatus::Disconnected,
             // we need to keep the runtime around, other wise our tasks will be dropped
             _runtime: rt,
         }
+    }
+
+    pub fn net_status(&self) -> &NetStatus {
+        &self.net_status
+    }
+    pub fn update_net_status(&mut self) -> UpdateNetStatusOutput {
+        use tokio::sync::mpsc::error::TryRecvError;
+
+        let Some(status_rx) = self.status_rx.as_mut() else {
+            // nothing to do
+            return UpdateNetStatusOutput::Unchanged(&self.net_status)
+        };
+
+        let status = match status_rx.try_recv() {
+            Ok(c) => c,
+            Err(TryRecvError::Disconnected) => {
+                log::error!("status_rx disconnected");
+                self.status_rx = None;
+                return UpdateNetStatusOutput::Unchanged(&self.net_status)
+            }
+            _ => {
+                // nothing to do, but we didn't modify anything
+                return UpdateNetStatusOutput::Unchanged(&self.net_status)
+            }
+        };
+
+        self.net_status = status;
+
+        UpdateNetStatusOutput::Changed(&self.net_status)
     }
 
     /// Return the remote message, if there is one
@@ -130,6 +162,21 @@ impl Comms {
                 log::warn!("could not process: dropping outgoing message");
             }
         };
+    }
+}
+
+#[derive(Debug,Copy,Clone)]
+pub enum UpdateNetStatusOutput<'a> {
+    Changed(&'a NetStatus),
+    Unchanged(&'a NetStatus),
+}
+impl <'a> UpdateNetStatusOutput<'a> {
+    pub fn is_changed(self) -> bool {
+        use UpdateNetStatusOutput::*;
+        match self {
+            Changed(_) => true,
+            Unchanged(_) => false
+        }
     }
 }
 
