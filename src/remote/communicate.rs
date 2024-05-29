@@ -3,7 +3,10 @@ use bevy::prelude::*;
 use std::net::{
     SocketAddr,
 };
-
+use anyhow::{
+    Result,
+    Context
+};
 use futures_util::{
     SinkExt,
     StreamExt,
@@ -47,7 +50,7 @@ pub struct Comms {
     _runtime: tokio::runtime::Runtime,
 }
 impl Comms {
-    pub fn init(cli: &CliArgs, settings: &UserSettings) -> Self {
+    pub fn try_init(cli: &CliArgs, settings: &UserSettings) -> Result<Self> {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_io()
             .build()
@@ -84,20 +87,30 @@ impl Comms {
                 let task = ctn.listen_for_incoming(listen_at);
                 rt.spawn(task);
             }
-            ConnectionMode::Connect { remote_url } => {
+            ConnectionMode::Connect { remote_addr, remote_port } => {
+                // fall back to the configured settings
+                let port = remote_port.unwrap_or(settings.port);
+
+                let url = format!("ws://{remote_addr}:{port}");
+                let remote_url = Url::parse(url.as_str())
+                    .with_context(|| format!(
+                            "unable to parse url: {url}, configured from cli args: remote_addr = {remote_addr}, remote_port = {remote_port:?}, settings.port = {}",
+                            settings.port
+                    ))?;
+
                 let task = ctn.connect_to_remote(remote_url.clone());
                 rt.spawn(task);
             }
         }
 
-        Self {
+        Ok(Self {
             receive_msg: Some(incoming_rx),
             send_msg: Some(outgoing_tx),
             status_rx: Some(status_rx),
             net_status: NetStatus::Disconnected,
             // we need to keep the runtime around, other wise our tasks will be dropped
             _runtime: rt,
-        }
+        })
     }
 
     pub fn net_status(&self) -> &NetStatus {

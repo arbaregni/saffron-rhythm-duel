@@ -14,6 +14,7 @@ mod widgets;
 mod selector_menu;
 
 use std::path::PathBuf;
+use std::net::IpAddr;
 
 use anyhow::Result;
 use bevy::prelude::*;
@@ -81,10 +82,13 @@ enum ConnectionMode {
     },
     /// Connect to a remote host.
     Connect {
-        /// Attempts to connect to a remote URL.
-        /// Should be in the format of `ws://<IP>:<PORT>, where <IP> and <PORT> are provided by
-        /// your remote partner.
-        remote_url: url::Url,
+        /// Attempts to connect to a remote IP address.
+        remote_addr: IpAddr,
+
+        /// Optionally, specify a port to connect to on the remote machine.
+        /// By default, this will take from the configured port in settings.toml
+        #[arg(long)]
+        remote_port: Option<u16>,
     }
 }
 
@@ -118,7 +122,7 @@ fn main() -> Result<()> {
 
     log::info!("Initializing app...");
 
-    let comms = remote::communicate::Comms::init(&cli, &settings);
+    let comms = remote::communicate::Comms::try_init(&cli, &settings)?;
 
     let window_plugin = make_window_plugin(&settings);
 
