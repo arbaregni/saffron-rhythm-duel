@@ -15,7 +15,9 @@ use bevy::{
 };
 
 use crate::team_markers::{
-    PlayerMarker
+    PlayerMarker,
+    EnemyMarker,
+    Marker,
 };
 use crate::lane::{
     Lane
@@ -53,12 +55,12 @@ const TARGET_SPARKLE_INITIAL_RADIUS: f32 = 0.0; // 0% of the lane
 const TARGET_SPARKLE_FINAL_RADIUS: f32 = 0.5; // 100% of the lane (the radius is half of the
                                               // diameter, which we want to be the full lane)
 
-fn create_target_sparkle_on_correct_hit(
+fn create_target_sparkle_on_correct_hit<T: Marker>(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<SparkleMaterial>>,
     time: Res<Time>,
-    panel: Query<&SongPanel, With<PlayerMarker>>,
+    panel: Query<&SongPanel, With<T>>,
     mut correct_events: EventReader<CorrectHitEvent>,
 ) {
     let now = time.elapsed().as_secs_f32();
@@ -91,26 +93,27 @@ fn create_target_sparkle_on_correct_hit(
             Layer::AboveTargets.z()
         );
 
-        commands.spawn((sparkle,
-            MaterialMesh2dBundle {
-                mesh,
-                transform: Transform {
-                    translation: position,
-                    scale,
-                    ..default()
-                },
-                material,
-                ..default()
-            }));
+        let transform = Transform {
+            translation: position,
+            scale,
+            ..default()
+        };
+        let mesh_bundle = MaterialMesh2dBundle {
+            mesh,
+            transform,
+            material,
+            ..default()
+        };
 
+        commands.spawn((sparkle, mesh_bundle, T::marker()));
     }
 }
 
-fn update_target_sparkles(
+fn update_target_sparkles<T: Marker>(
     mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(Entity, &mut Transform, &TargetSparkle)>,
-    panel: Query<&SongPanel, With<PlayerMarker>>,
+    mut query: Query<(Entity, &mut Transform, &TargetSparkle), With<T>>,
+    panel: Query<&SongPanel, With<T>>,
 ) {
     let now = time.elapsed().as_secs_f32();
     let panel = panel.single();
@@ -145,8 +148,8 @@ impl Plugin for TargetSparklesPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(Material2dPlugin::<SparkleMaterial>::default())
-            .add_systems(Update, create_target_sparkle_on_correct_hit)
-            .add_systems(Update, update_target_sparkles)
+            .add_systems(Update, create_target_sparkle_on_correct_hit::<PlayerMarker>)
+            .add_systems(Update, update_target_sparkles::<PlayerMarker>)
         ;
 
     }
