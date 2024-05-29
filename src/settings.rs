@@ -29,6 +29,8 @@ pub struct UserSettings {
     pub port: u16,
     #[serde(default = "default_host_addr")]
     pub host_addr: IpAddr,
+    #[serde(default = "default_window_mode")]
+    pub window_mode: WindowMode,
 }
 
 fn default_port() -> u16 {
@@ -38,11 +40,30 @@ fn default_host_addr() -> IpAddr {
     IpAddr::from([0,0,0,0])
 }
 
+fn default_window_mode() -> WindowMode {
+    WindowMode::Borderless
+}
+
+#[derive(Debug,Clone,Copy,Eq,PartialEq,Serialize,Deserialize)]
+pub enum WindowMode {
+    Borderless,
+    Windowed
+}
+impl std::convert::Into<bevy::window::WindowMode> for WindowMode {
+    fn into(self: Self) -> bevy::window::WindowMode {
+        match self {
+            WindowMode::Borderless => bevy::window::WindowMode::BorderlessFullscreen,
+            WindowMode::Windowed => bevy::window::WindowMode::Windowed,
+        }
+    }
+}
+
 impl std::default::Default for UserSettings {
     fn default() -> Self {
         Self {
-            port: default_port(),
+            window_mode: default_window_mode(),
             host_addr: default_host_addr(),
+            port: default_port(),
             keybindings: KeyBindings::default(),
         }
     }

@@ -90,7 +90,7 @@ enum ConnectionMode {
 
 const BASE_FONT_NAME: &str = "fonts/FiraSans-Bold.ttf";
 
-fn make_window_plugin() -> bevy::window::WindowPlugin {
+fn make_window_plugin(settings: &settings::UserSettings) -> bevy::window::WindowPlugin {
     use bevy::window::*;
 
     let primary_window = Window {
@@ -98,7 +98,8 @@ fn make_window_plugin() -> bevy::window::WindowPlugin {
         resolution: (world().width(), world().height()).into(),
         window_theme: Some(WindowTheme::Dark),
         present_mode: PresentMode::AutoVsync,
-        mode: WindowMode::BorderlessFullscreen,
+        mode: settings.window_mode.into(),
+        visible: false, // turn it on in a few frames to let the gpu catch up
         ..default()
     };
     WindowPlugin {
@@ -113,23 +114,24 @@ fn main() -> Result<()> {
 
     logging::configure_logging(&cli)?;
 
-    let config = settings::load_settings(&cli)?;
-
+    let settings = settings::load_settings(&cli)?;
 
     log::info!("Initializing app...");
 
-    let comms = remote::communicate::Comms::init(&cli, &config);
+    let comms = remote::communicate::Comms::init(&cli, &settings);
+
+    let window_plugin = make_window_plugin(&settings);
 
     App::new()
         // Load resources
         .insert_resource(cli)
-        .insert_resource(config)
+        .insert_resource(settings)
         .insert_resource(comms)
         .insert_resource(ClearColor(BACKGROUND_COLOR))
 
         // Configure default plugins
         .add_plugins(DefaultPlugins
-            .set(make_window_plugin())
+            .set(window_plugin)
             .disable::<bevy::log::LogPlugin>()
         )
         // Load custom plugins
@@ -143,6 +145,7 @@ fn main() -> Result<()> {
 
         // Systems
         .add_systems(Startup, setup)
+        .add_systems(OnEnter(layout::LayoutState::Done), make_window_visible)
         .add_systems(Update, close_on_esc)
         .add_systems(Update, close_on_window_close_requested)
         .run();
@@ -156,6 +159,10 @@ fn setup(mut commands: Commands, _asset_server: Res<AssetServer>) {
         height: world().height(), 
     };
     commands.spawn(cam);
+}
+
+fn make_window_visible(mut window: Query<&mut Window>) {
+    window.single_mut().visible = true;
 }
 
 
