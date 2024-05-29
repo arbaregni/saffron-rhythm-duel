@@ -318,6 +318,7 @@ impl Plugin for InputPlugin {
         log::info!("Building Input plugin");
         app
             .add_event::<LaneHit>()
+            .add_event::<RemoteLaneHit>()
             .add_systems(Startup, setup_input_manager)
             .add_systems(PreUpdate, listen_for_input) // important that input happens the frame it's detected
         ;

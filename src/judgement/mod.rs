@@ -9,7 +9,9 @@ use serde::{
 use bevy::prelude::*;
 
 use crate::team_markers::{
-    PlayerMarker
+    PlayerMarker,
+    EnemyMarker,
+    Marker,
 };
 
 use crate::arrow::{
@@ -20,6 +22,7 @@ use crate::layout::{
     BBox,
 };
 use crate::input::{
+    RawLaneHit,
     LaneHit
 };
 
@@ -37,37 +40,40 @@ pub const KEYPRESS_TOLERANCE_SECS: f32 = 0.5; // in seconds
 /// completes that arrow.
 #[derive(Event)]
 #[derive(Debug,Clone,Deserialize,Serialize)]
-pub struct CorrectHitEvent {
+pub struct RawCorrectHitEvent<T: Marker> {
     /// The lane hit
-    pub lane_hit: LaneHit,
+    pub lane_hit: RawLaneHit<T>,
     /// The grade the judgment system gave
     pub grade: SuccessGrade,
 }
-impl CorrectHitEvent {
+impl <T: Marker> RawCorrectHitEvent<T> {
     fn grade(&self) -> SuccessGrade {
         self.grade
     }
 }
+pub type CorrectHitEvent = RawCorrectHitEvent<PlayerMarker>;
 
 /// Represents when the user hits the lane, and there is a nearby note,
 /// But we don't want to count it as 'completing' that note.
 #[derive(Event)]
 #[derive(Debug,Clone,Deserialize,Serialize)]
-pub struct IncorrectHitEvent {
+pub struct RawIncorrectHitEvent<T: Marker> {
     /// THe lane hit
-    lane_hit: LaneHit,
+    lane_hit: RawLaneHit<T>,
     /// The grade the judgement system gave
     pub grade: FailingGrade,
 }
+pub type IncorrectHitEvent = RawIncorrectHitEvent<PlayerMarker>;
 
 /// Event representing when the user attempts to complete a note, but are too early or late to be
 /// considered 'correct'
 #[derive(Event)]
 #[derive(Debug,Clone,Deserialize,Serialize)]
-pub struct MissfireEvent {
+pub struct RawMissfireEvent<T: Marker> {
     /// The lane hit that originated this missfire
-    lane_hit: LaneHit,
+    lane_hit: RawLaneHit<T>,
 }
+pub type MissfireEvent = RawMissfireEvent<PlayerMarker>;
 
 #[derive(Debug,Copy,Clone,Deserialize,Serialize)]
 pub enum SuccessGrade {
@@ -291,9 +297,14 @@ pub struct JudgementPlugin;
 impl Plugin for JudgementPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_event::<CorrectHitEvent>()
-            .add_event::<IncorrectHitEvent>()
-            .add_event::<MissfireEvent>()
+            .add_event::<RawCorrectHitEvent::<PlayerMarker>>()
+            .add_event::<RawIncorrectHitEvent::<PlayerMarker>>()
+            .add_event::<RawMissfireEvent::<PlayerMarker>>()
+
+            .add_event::<RawCorrectHitEvent::<EnemyMarker>>()
+            .add_event::<RawIncorrectHitEvent::<EnemyMarker>>()
+            .add_event::<RawMissfireEvent::<EnemyMarker>>()
+
             .add_event::<DroppedNoteEvent>()
 
             .insert_resource::<JudgementSettings>(JudgementSettings::new())

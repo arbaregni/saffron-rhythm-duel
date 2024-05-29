@@ -18,7 +18,8 @@ use super::{
     GameMessage
 };
 use crate::judgement::{
-    CorrectHitEvent
+    CorrectHitEvent,
+    RawCorrectHitEvent
 };
 use crate::input::{
     RemoteLaneHit
@@ -30,6 +31,7 @@ pub fn translate_messages_from_remote(
     mut listener: ResMut<Comms>,
     mut remote_lane_hit: EventWriter<RemoteLaneHit>,
     mut remote_load_chart: EventWriter<LoadChartEvent<EnemyMarker>>,
+    mut remote_correct_hit: EventWriter<RawCorrectHitEvent<EnemyMarker>>,
 ) {
     let Some(msg) = listener.try_recv_message() else {
         return; // nothing to do
@@ -53,10 +55,12 @@ pub fn translate_messages_from_remote(
                 EnemyMarker{},
             ));
         }
-        CorrectHit { .. } => {
+        CorrectHit { lane, grade } => {
             log::debug!("emitting remote correct hit");
-            // TODO
-            log::warn!("TODO: emit remote correct hit");
+            remote_correct_hit.send(RawCorrectHitEvent {
+                lane_hit: RemoteLaneHit::from(lane, now),
+                grade,
+            });
         }
     }
 }
@@ -83,7 +87,7 @@ pub fn translate_events_from_local(
     for ev in correct_hit_ev.read() {
         log::debug!("consuming local correct hit, passing to remote");
         comms.try_send_message(GameMessage::CorrectHit {
-            lane_hit: ev.lane_hit.clone(),
+            lane: ev.lane_hit.lane(),
             grade: ev.grade.clone(),
         });
     }

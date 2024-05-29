@@ -8,10 +8,7 @@ use serde::{
 use crate::lane::{
     Lane
 };
-use crate::input::{
-    LaneHit,
-    RemoteLaneHit
-};
+
 use crate::judgement::{
     SuccessGrade,
 };
@@ -33,7 +30,7 @@ pub enum GameMessage {
         chart_name: String
     },
     CorrectHit {
-        lane_hit: LaneHit,
+        lane: Lane,
         grade: SuccessGrade,
     },
 }
@@ -43,7 +40,6 @@ pub struct RemoteUserPlugin;
 impl Plugin for RemoteUserPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_event::<RemoteLaneHit>()
             .add_systems(Update, translate::translate_messages_from_remote)
             .add_systems(Update, translate::translate_events_from_local)
             .add_plugins(widgets::NetworkingWidgetsPlugin)

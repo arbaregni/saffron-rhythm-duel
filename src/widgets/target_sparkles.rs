@@ -28,7 +28,7 @@ use crate::layout::{
 };
 
 use crate::judgement::{
-    CorrectHitEvent,
+    RawCorrectHitEvent,
 };
 
 
@@ -61,7 +61,7 @@ fn create_target_sparkle_on_correct_hit<T: Marker>(
     mut materials: ResMut<Assets<SparkleMaterial>>,
     time: Res<Time>,
     panel: Query<&SongPanel, With<T>>,
-    mut correct_events: EventReader<CorrectHitEvent>,
+    mut correct_events: EventReader<RawCorrectHitEvent<T>>,
 ) {
     let now = time.elapsed().as_secs_f32();
     let panel = panel.single();
@@ -148,8 +148,12 @@ impl Plugin for TargetSparklesPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_plugins(Material2dPlugin::<SparkleMaterial>::default())
+
             .add_systems(Update, create_target_sparkle_on_correct_hit::<PlayerMarker>)
             .add_systems(Update, update_target_sparkles::<PlayerMarker>)
+
+            .add_systems(Update, create_target_sparkle_on_correct_hit::<EnemyMarker>)
+            .add_systems(Update, update_target_sparkles::<EnemyMarker>)
         ;
 
     }
