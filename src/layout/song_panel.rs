@@ -1,10 +1,5 @@
 use bevy::prelude::*;
 
-use crate::{
-    settings::UserSettings,
-    CliArgs
-};
-
 use crate::lane::{
     Lane,
     LaneMap
@@ -35,7 +30,6 @@ impl SongPanel {
 
     }
 
-    
     pub fn target_height(&self) -> f32 {
         crate::arrow::Arrow::height()
     }
@@ -62,60 +56,5 @@ impl SongPanel {
     pub fn lane_bounds(&self, lane: Lane) -> &BBox {
         &self.lanes[lane]
     }
-
-    pub fn build<'a, 'w, 's, T>(self,
-                        marker: T,
-                        commands: &'a mut Commands<'w, 's>,
-                        asset_server: &'a AssetServer,
-                        settings: &'a UserSettings,
-                        cli: &'a CliArgs,
-    ) -> SongPanelSetupContext<'a, 'w, 's, T>
-        where T: Component + Copy
-    {
-        SongPanelSetupContext {
-            panel: self,
-            cli,
-            marker,
-            commands,
-            asset_server,
-            settings,
-            _extra: (),
-        }
-    }
 }
 
-pub struct SongPanelSetupContext<'a, 'w, 's, T> {
-    pub panel: SongPanel,
-    pub marker: T,
-    pub commands: &'a mut Commands<'w, 's>,
-    pub asset_server: &'a AssetServer,
-    pub settings: &'a UserSettings,
-    pub cli: &'a CliArgs,
-    // prevents users from exhaustively pattern matching
-    _extra: (),
-}
-
-
-impl <'a, 'w, 's, T> SongPanelSetupContext<'a, 'w, 's, T>
-where T: Component + Copy
-{
-
-    /// Other modules define methods on the setup context according to their needs
-
-
-    /// Creates the SongPanel entity itself and drops the setup context object
-    pub fn finish(self) {
-
-        let Self {
-            commands,
-            marker,
-            panel,
-            ..
-        } = self;
-
-        // spawn the panel
-        commands.spawn((marker, panel));
-
-    }
-
-}

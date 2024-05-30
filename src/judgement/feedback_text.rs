@@ -5,9 +5,13 @@ use bevy::text::{
 
 use crate::layout::{
     Layer,
-    SongPanelSetupContext,
+    SongPanel,
+    LayoutState,
 };
-
+use crate::team_markers::{
+    Marker,
+    PlayerMarker
+};
 use super::{
     metrics,
     CorrectHitEvent,
@@ -37,62 +41,54 @@ impl FeedbackText {
 
 
 /// Setups the resources for the feedback text.
-impl <'a, 'w, 's, T> SongPanelSetupContext<'a, 'w, 's, T>
-where T: Component + Copy
-{
-    pub fn setup_feedback_text(mut self) -> Self {
-        let Self {
-            commands,
-            marker,
-            asset_server,
-            panel,
-            ..
-        } = &mut self;
+pub fn setup_feedback_text<T: Marker>(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    panel_q: Query<&SongPanel, With<T>>,
+) {
+    let panel = panel_q.single();
 
-        let font = asset_server.load(crate::BASE_FONT_NAME);
-        let font_size = 100.0;
-        let color = Color::rgb(0.9, 0.9, 0.9); // off white is a nice text color with this
-                                               // backgournd
+    let font = asset_server.load(crate::BASE_FONT_NAME);
+    let font_size = 100.0;
+    let color = Color::rgb(0.9, 0.9, 0.9); // off white is a nice text color with this
+                                           // backgournd
 
-        let text_content = "".to_string();
+    let text_content = "".to_string();
 
-        let mut pos = panel.bounds().center();
-        pos.z = Layer::TextAlerts.z();
+    let mut pos = panel.bounds().center();
+    pos.z = Layer::TextAlerts.z();
 
-        let transform = Transform {
-            translation: pos,
-            ..default()
-        };
+    let transform = Transform {
+        translation: pos,
+        ..default()
+    };
 
-        let style = TextStyle { font, font_size, color };
-        let text = Text {
-            sections: vec![
-                TextSection {
-                    value: text_content,
-                    style,
-                }
-            ],
-            ..default()
-        };
-
-        commands.spawn((
-            marker.clone(),
-            FeedbackText::new(),
-            Text2dBundle {
-                text,
-                transform,
-                text_2d_bounds: Text2dBounds {
-                    size: panel.bounds().size().truncate() // clips of the z component
-                },
-                ..default()
+    let style = TextStyle { font, font_size, color };
+    let text = Text {
+        sections: vec![
+            TextSection {
+                value: text_content,
+                style,
             }
-        ));
+        ],
+        ..default()
+    };
+    let text_bundle = Text2dBundle {
+        text,
+        transform,
+        text_2d_bounds: Text2dBounds {
+            size: panel.bounds().size().truncate() // clips of the z component
+        },
+        ..default()
+    };
 
-
-        self
-    }
-
+    commands.spawn((
+        T::marker(),
+        FeedbackText::new(),
+        text_bundle
+    ));
 }
+
     
 /// Display a message to the user when they hit a note correctly.
 fn set_feedback_content_on_correct_hit(
@@ -322,6 +318,8 @@ pub struct FeedbackTextPlugin;
 impl Plugin for FeedbackTextPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_systems(OnEnter(LayoutState::Done), setup_feedback_text::<PlayerMarker>)
+
             .add_systems(Update, update_feedback_text)
 
             // We need to schedule these after the metrics update so that we can
