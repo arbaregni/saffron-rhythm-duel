@@ -55,9 +55,9 @@ fn setup_layout(
                cli.as_ref(),
         )
         // creates all the associated resources
-        .setup_lane_targets()
+        //.setup_lane_targets()
         .setup_feedback_text()
-        .setup_lane_letters()
+        //.setup_lane_letters()
         .finish();
 
     // TODO: create the enemy song panel
@@ -68,7 +68,7 @@ fn setup_layout(
                settings.as_ref(),
                cli.as_ref(),
         )
-        .setup_lane_targets()
+       // .setup_lane_targets()
         .finish();
 
     // done with laying out, we set this so that now the game objects can spawn in
