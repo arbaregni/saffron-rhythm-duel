@@ -71,7 +71,7 @@ impl <T: Marker> SongFinishedEvent<T> {
 
 #[derive(Debug,Clone,Eq,PartialEq,Hash)]
 #[derive(States)]
-enum SongState<T: Marker> {
+pub enum SongState<T: Marker> {
     Playing(T),
     NotPlaying
 }

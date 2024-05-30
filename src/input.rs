@@ -315,7 +315,6 @@ fn to_keycode(name: &str) -> KeyCode {
 pub struct InputPlugin;
 impl Plugin for InputPlugin {
     fn build(&self, app: &mut App) {
-        log::info!("Building Input plugin");
         app
             .add_event::<LaneHit>()
             .add_event::<RemoteLaneHit>()

@@ -7,41 +7,16 @@ use super::{
     MissfireEvent,
     FailingGrade
 };
-
-#[derive(Debug)]
-enum SongEvent {
-    CorrectHit(CorrectHitEvent),
-    IncorrectHit(IncorrectHitEvent),
-    DroppedNote(DroppedNoteEvent),
-    Missfire(MissfireEvent),
-}
-impl From<CorrectHitEvent> for SongEvent {
-    fn from(event: CorrectHitEvent) -> SongEvent {
-        SongEvent::CorrectHit(event)
-    }
-}
-impl From<IncorrectHitEvent> for SongEvent {
-    fn from(event: IncorrectHitEvent) -> SongEvent {
-        SongEvent::IncorrectHit(event)
-    }
-}
-impl From<DroppedNoteEvent> for SongEvent {
-    fn from(event: DroppedNoteEvent) -> SongEvent {
-        SongEvent::DroppedNote(event)
-    }
-}
-impl From<MissfireEvent> for SongEvent {
-    fn from(event: MissfireEvent) -> SongEvent {
-        SongEvent::Missfire(event)
-    }
-}
-
+use crate::arrow::{
+    SongState
+};
+use crate::team_markers::{
+    PlayerMarker
+};
 
 #[derive(Resource)]
 #[derive(Debug)]
 pub struct SongMetrics {
-    history: Vec<SongEvent>,
-
     /// Count the total number of arrows that have passed the target line
     total_arrows: u32,
 
@@ -69,9 +44,6 @@ pub struct SongMetrics {
 impl SongMetrics {
     pub fn new() -> SongMetrics {
         SongMetrics {
-            // start with a big capacity because we expect to fill it up
-            history: Vec::with_capacity(1000),
-
             // fill everything else with 0
             total_arrows: 0,
             correct_hits: 0,
@@ -83,9 +55,6 @@ impl SongMetrics {
             streak: 0,
             just_broke_streak: false,
         }
-    }
-    fn last_event(&self) -> Option<&SongEvent> {
-        self.history.last()
     }
     /// Total number of arrows that have passed the target line.
     pub fn total_arrows(&self) -> u32 {
@@ -198,16 +167,21 @@ pub fn update_metrics(
 
 }
 
+fn reset_metrics(mut metrics: ResMut<SongMetrics>) {
+    *metrics.as_mut() = SongMetrics::new();
+}
+
 pub struct MetricsPlugin;
 impl Plugin for MetricsPlugin {
     fn build(&self, app: &mut App) {
-        log::info!("Building metrics plugin");
         app
             .insert_resource(SongMetrics::new())
             .add_systems(Update, update_metrics
                                      .after(super::judge_lane_hits)
                                      .after(super::despawn_arrows)
              )
+            // reset the metrics when we start a song
+            .add_systems(OnEnter(SongState::Playing(PlayerMarker{})), reset_metrics) 
         ;
     }
 }
