@@ -11,10 +11,6 @@ pub use spawner::{
     ArrowSpawner,
     ArrowBuf,
 };
-mod timer;
-pub use timer::{
-    BeatTimer,
-};
 
 //
 // Our imports
@@ -41,13 +37,16 @@ fn world() -> BBox {
 #[derive(Debug)]
 pub struct LoadChartEvent<T: Marker> {
     chart_name: String,
+    // Set to zero to start at the beginning
+    beat_count: u32,
     team: T,
 }
 impl <T: Marker> LoadChartEvent<T> {
-    pub fn create(chart_name: String, team: T) -> LoadChartEvent<T> {
+    pub fn create(chart_name: String) -> LoadChartEvent<T> {
         Self {
             chart_name,
-            team
+            beat_count: 0,
+            team: T::marker(),
         }
     }
 }
@@ -76,11 +75,34 @@ pub enum SongState<T: Marker> {
     NotPlaying
 }
 
+fn _get_audio_bundle<T: Marker>(
+    chart: &Chart,
+    assets: &AssetServer,
+) -> AudioBundle {
+
+    if T::is_local() {
+        return AudioBundle::default();
+    }
+
+
+    match chart.sound_file() {
+        Some(filename) => {
+            let filepath = format!("sounds/{filename}");
+            log::info!("loading audio asset from path {filepath}");
+            AudioBundle {
+                source: assets.load(filepath),
+                ..default()
+            }
+        }
+        None => AudioBundle::default()
+    }
+}
 fn process_load_chart_events<T: Marker>(
     mut load_chart_events: EventReader<LoadChartEvent<T>>,
     mut commands: Commands,
     assets: Res<AssetServer>,
     time: Res<Time>,
+    // spawner_q: Query<&ArrowSpawner<T>>,
     mut state: ResMut<NextState<SongState<T>>>,
 ) {
     if load_chart_events.is_empty() {
@@ -90,37 +112,17 @@ fn process_load_chart_events<T: Marker>(
         .read()
         .for_each(|ev| {
             log::info!("consuming load chart event");
-
             let chart_name = ev.chart_name.as_str();
-            let Ok(chart) = Chart::try_load_from_file(chart_name)
-                .inspect_err(|e| log::error!("unable to parse {chart_name} due to: {e}"))
+
+            let Ok(spawner) = ArrowSpawner::<T>::create(chart_name, time.as_ref())
+                .inspect_err(|e| log::error!("could not create arrow spawner: {e}"))
                 else { return; };
 
-            let spawner = ArrowSpawner::create(chart, T::team());
+            let audio_bundle = _get_audio_bundle::<T>(spawner.chart(), assets.as_ref());
 
+            commands
+                .spawn((spawner, audio_bundle, T::marker()));
 
-            let audio = match (T::is_local(), spawner.chart().sound_file()) {
-                (true, Some(filename)) => {
-                    let filepath = format!("sounds/{filename}");
-                    log::info!("loading audio asset from path {filepath}");
-                    AudioBundle {
-                        source: assets.load(filepath),
-                        ..default()
-                    }
-                }
-                _ => {
-                    AudioBundle::default()
-                }
-            };
-            let beat_timer = BeatTimer::create(time.as_ref(), spawner.chart());
-
-            commands.spawn((
-                spawner,
-                beat_timer,
-                audio,
-                ArrowBuf::new(),
-                T::marker()
-            ));
             state.set(SongState::Playing(T::marker()));
         });
 }
@@ -129,7 +131,8 @@ fn process_load_chart_events<T: Marker>(
 fn spawn_arrows<T: Marker>(
     mut commands: Commands,
     time: Res<Time>,
-    mut spawner_query: Query<(&ArrowSpawner, &mut BeatTimer, &mut ArrowBuf), With<T>>,
+    mut spawner: Query<&mut ArrowSpawner<T>>,
+    mut arrow_buf_query: Query<&mut ArrowBuf, With<T>>,
     panel_query: Query<&SongPanel, With<T>>,
 ) {
     let panel = panel_query.single();
@@ -137,51 +140,52 @@ fn spawn_arrows<T: Marker>(
     // ========================================
     //    create the arrows
     // ========================================
+    //
+    let mut arrow_buf = arrow_buf_query.single_mut();
 
-    for (spawner, mut beat_timer, mut arrow_buf) in spawner_query.iter_mut() {
+    let mut spawner = spawner.single_mut();
 
-        let Some(beat_tick) = beat_timer.tick(&time) else {
-            // the clock did not tick, no arrow yet.
-            // move on to the next spawner
-            continue;
+    let Some(beat_tick) = spawner.tick(&time) else {
+        // the clock did not tick, no arrow yet.
+        // move on to the next spawner
+        return;
+    };
+
+    arrow_buf.buf.clear();
+    spawner.create_arrows_in(&mut arrow_buf.buf, time.as_ref(), beat_tick.beat());
+
+    // =======================================
+    //   spawn the arrows
+    // =======================================
+    for arrow in arrow_buf.buf.drain(..) {
+
+        let x = panel.lane_bounds(arrow.lane).center().x;
+        let y = panel.bounds().top();
+        let z = Layer::Arrows.z();
+        let pos = Vec3::new(x, y, z);
+
+        let width = panel.lane_bounds(arrow.lane).width();
+        let height = Arrow::height();
+        let scale = Vec3::new(width, height, 1.0);
+
+        let color = arrow.lane.colors().base;
+
+        let transform = Transform {
+            translation: pos,
+            scale,
+            ..default()
         };
-        let beat = beat_tick.beat();
-
-        arrow_buf.buf.clear();
-        spawner.create_arrows_in(&mut arrow_buf.buf, time.as_ref(), beat);
-
-        // =======================================
-        //   spawn the arrows
-        // =======================================
-        for arrow in arrow_buf.buf.drain(..) {
-
-            let x = panel.lane_bounds(arrow.lane).center().x;
-            let y = panel.bounds().top();
-            let z = Layer::Arrows.z();
-            let pos = Vec3::new(x, y, z);
-
-            let width = panel.lane_bounds(arrow.lane).width();
-            let height = Arrow::height();
-            let scale = Vec3::new(width, height, 1.0);
-
-            let color = arrow.lane.colors().base;
-
-            let sprite = SpriteBundle {
-                transform: Transform {
-                    translation: pos,
-                    scale,
-                    ..default()
-                },
-                sprite: Sprite {
-                    color,
-                    ..default()
-                },
-                ..default()
-            };
-            commands
-                .spawn((arrow, sprite, T::marker()));
-
-        }
+        let sprite = Sprite {
+            color,
+            ..default()
+        };
+        let sprite_bundle = SpriteBundle {
+            transform,
+            sprite,
+            ..default()
+        };
+        commands
+            .spawn((arrow, sprite_bundle, T::marker()));
 
     }
 
@@ -202,17 +206,17 @@ fn check_for_song_end<T: Marker>(
     _commands: Commands,
     time: Res<Time>,
     arrows: Query<&Arrow, With<T>>,
-    spawner: Query<(&ArrowSpawner, &BeatTimer), With<T>>,
+    spawner_q: Query<&ArrowSpawner<T>>,
     mut state: ResMut<NextState<SongState<T>>>,
 ) {
     let now = time.elapsed().as_secs_f32();
 
-    let (spawner, timer) = spawner.single();
+    let spawner = spawner_q.single();
 
-    let finished_with_beats = timer.beat_count() > spawner.chart().num_beats();
+    let finished_with_beats = spawner.beat_count() > spawner.chart().num_beats();
     let all_arrows_despawned = arrows.is_empty();
     
-    let song_end = timer.song_start() + spawner.chart().total_duration();
+    let song_end = spawner.song_start() + spawner.chart().total_duration();
     let buffer_time = 1.2 * spawner.chart().lead_time_secs();
 
     if finished_with_beats && all_arrows_despawned && now > song_end + buffer_time {
@@ -223,10 +227,10 @@ fn check_for_song_end<T: Marker>(
 
 fn cleanup_spawner<T: Marker>(
     mut commands: Commands,
-    spawners: Query<(Entity, &ArrowSpawner), With<T>>,
+    spawner: Query<(Entity, &ArrowSpawner<T>)>,
     mut ending_ev: EventWriter<SongFinishedEvent<T>>,
 ) {
-    spawners
+    spawner
         .iter()
         .for_each(|(e, _)| {
             commands.entity(e)

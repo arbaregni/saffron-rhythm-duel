@@ -1,7 +1,12 @@
 use bevy::prelude::*;
 
+use anyhow::{
+    Result,
+    Context
+};
+
 use crate::team_markers::{
-    Team,
+    Marker,
 };
 
 use super::{
@@ -11,26 +16,72 @@ use super::{
 
 #[derive(Component)]
 #[derive(Debug, Clone)]
-pub struct ArrowSpawner {
+pub struct ArrowSpawner<T: Marker> {
     /// How we will spawn the arrows
     chart: Chart,
+    /// The timer marking off the beat
+    beat_timer: Timer,
+    /// The number of beat tickets. Indexes into the list of beats in a chart.
+    beat_count: u32,
+    /// The local timestamp when the song started
+    song_start: f32,
     /// The team we are spawning for.
-    team: Team,
+    team: T,
 }
-impl ArrowSpawner {
+impl <T: Marker> ArrowSpawner<T> {
     /// Creates an arrow spawner
-    pub fn create(chart: Chart, team: Team) -> Self {
-        Self {
+    pub fn create(chart_name: &str, time: &Time) -> Result<Self> {
+        use std::time::Duration;
+
+        let chart = Chart::try_load_from_file(chart_name)
+            .with_context(|| format!("loading chart with name {chart_name}"))?;
+
+        let duration = Duration::from_secs_f32(chart.beat_duration_secs());
+        let beat_timer = Timer::new(duration, TimerMode::Repeating);
+
+        let now = time.elapsed().as_secs_f32();
+
+        Ok(Self {
             chart,
-            team
-        }
+            beat_timer,
+            song_start: now,
+            beat_count: 0,
+            team: T::marker(),
+        })
     }
 
+    pub fn tick(&mut self, time: &Time) -> Option<BeatTick> {
+        let now = time.elapsed().as_secs_f32();
+
+        if now < self.song_start() {
+            // not time to start the song yet
+            return None;
+        }
+
+        self.beat_timer.tick(time.delta());
+
+        if !self.beat_timer.just_finished() {
+            // not time for another beat just yet
+            return None;
+        }
+
+        let beat = self.beat_count();
+        self.beat_count += 1;
+
+        Some(BeatTick {
+            beat
+        })
+
+    }
+
+    pub fn song_start(&self) -> f32 {
+        self.song_start
+    }
+    pub fn beat_count(&self) -> u32 {
+        self.beat_count
+    }
     pub fn chart(&self) -> &Chart {
         &self.chart
-    }
-    pub fn team(&self) -> Team {
-        self.team
     }
 
     /// Populates `buf` with a list of chart names that the user can select.
@@ -85,6 +136,14 @@ impl ArrowBuf {
     }
 }
 
+#[derive(Debug)]
+pub struct BeatTick {
+    /// The count of the beat we are on.
+    beat: u32,
+}
 
-
-
+impl BeatTick {
+    pub fn beat(&self) -> u32 {
+        self.beat
+    }
+}

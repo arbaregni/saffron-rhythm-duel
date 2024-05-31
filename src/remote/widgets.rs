@@ -4,7 +4,7 @@ use bevy::text::{
 };
 
 use crate::arrow::{
-    ArrowSpawner,
+    SongState,
     LoadChartEvent, 
 };
 use crate::layout::{
@@ -111,12 +111,12 @@ fn update_status_text_on_remote_event(
 
 fn update_status_text(
     mut text_q: Query<(&mut Text, &mut StatusText)>,
-    spawner_q: Query<&ArrowSpawner, With<EnemyMarker>>,
+    song_state: Res<State<SongState<EnemyMarker>>>,
     mut comms: ResMut<Comms>,
 ) {
     let (mut text, _status_text) = text_q.single_mut();
 
-    let no_song_yet = spawner_q.is_empty();
+    let no_song_yet = matches!(song_state.get(), SongState::NotPlaying);
 
     if !comms.update_net_status().is_changed() {
         // nothing to do. no sense rewriting anything

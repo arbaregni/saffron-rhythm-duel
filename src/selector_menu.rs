@@ -233,7 +233,6 @@ fn interact_with_buttons(
             log::info!("emitting load chart event");
             load_chart_ev.send(LoadChartEvent::create(
                 chart_name.to_string(),
-                PlayerMarker{}
             ));
             state.set(ChartSelectorState::Disabled);
         }

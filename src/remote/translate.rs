@@ -52,7 +52,6 @@ pub fn translate_messages_from_remote(
             log::debug!("emitting remote chart load");
             remote_load_chart.send(LoadChartEvent::create(
                 chart_name,
-                EnemyMarker{},
             ));
         }
         CorrectHit { lane, grade } => {
