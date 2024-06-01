@@ -6,6 +6,7 @@ use crate::team_markers::{
 };
 use crate::arrow::{
     LoadChartEvent,
+    LoadChartResponse,
     SongFinishedEvent
 };
 
@@ -73,12 +74,14 @@ const NORMAL_BORDER_COLOR: Color = Color::BLACK;
 
 const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 
-#[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug, Hash)]
 #[derive(States)]
 enum ChartSelectorState {
-    // mark as default just so we start with it on
-    #[default]
-    Enabled,
+    /// User is currently picking a chart
+    SelectingChart,
+    /// We are attempting to honor the request
+    LoadingChart,
+    /// We are not on
     Disabled,
 }
 
@@ -96,7 +99,7 @@ fn enable_chart_selector_on_song_end<T: Marker>(
         return; // Nothing to do
     }
     song_end_ev.clear();
-    state.set(ChartSelectorState::Enabled);
+    state.set(ChartSelectorState::SelectingChart);
 }
 
 
@@ -234,20 +237,41 @@ fn interact_with_buttons(
             load_chart_ev.send(LoadChartEvent::create(
                 chart_name.to_string(),
             ));
-            state.set(ChartSelectorState::Disabled);
+            state.set(ChartSelectorState::LoadingChart);
         }
     }
+}
+fn process_load_chart_resp(
+    mut load_chart_resp: EventReader<LoadChartResponse<PlayerMarker>>,
+    mut state: ResMut<NextState<ChartSelectorState>>,
+) {
+    use ChartSelectorState::*;
+    load_chart_resp
+        .read()
+        .for_each(|resp| {
+            match &resp.response {
+                Ok(()) => {
+                    state.set(Disabled)
+                }
+                Err(e) => {
+                    log::error!("unable to load: {e:?}");
+                    state.set(SelectingChart)
+                }
+            }
+        })
 }
 
 pub struct ChartSelectorPlugin;
 impl Plugin for ChartSelectorPlugin {
     fn build(&self, app: &mut App) {
+        use ChartSelectorState::*;
         app
-            .init_state::<ChartSelectorState>()
+            .insert_state(SelectingChart)
             .add_systems(Update, enable_chart_selector_on_song_end::<PlayerMarker>)
-            .add_systems(OnEnter(ChartSelectorState::Enabled), setup_chart_selector::<PlayerMarker>)
-            .add_systems(Update, interact_with_buttons.run_if(in_state(ChartSelectorState::Enabled)))
-            .add_systems(OnExit(ChartSelectorState::Enabled), despawn_chart_selector::<PlayerMarker>)
+            .add_systems(OnEnter(SelectingChart), setup_chart_selector::<PlayerMarker>)
+            .add_systems(Update, interact_with_buttons.run_if(in_state(SelectingChart)))
+            .add_systems(Update, process_load_chart_resp.run_if(in_state(LoadingChart)))
+            .add_systems(OnExit(SelectingChart), despawn_chart_selector::<PlayerMarker>)
         ;
     }
 }

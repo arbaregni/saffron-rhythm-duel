@@ -1,3 +1,7 @@
+use anyhow::{
+    Result,
+    Context
+};
 use bevy::prelude::*;
 use serde::{
     Deserialize,
@@ -35,13 +39,15 @@ pub struct Note {
 }
 
 impl Chart {
-    pub fn try_load_from_file(filename: &str) -> anyhow::Result<Chart> {
+    pub fn try_load_from_file(filename: &str) -> Result<Chart> {
         let path = format!("assets/charts/{filename}.json");
 
         // read the chart from the file
-        let text = std::fs::read_to_string(&path)?;
+        let text = std::fs::read_to_string(&path)
+            .with_context(|| format!("reading from file {path}"))?;
 
-        let chart: Chart = serde_json::from_str(text.as_str())?;
+        let chart: Chart = serde_json::from_str(text.as_str())
+            .context("parsing json")?;
 
         log::info!("Parsed chart '{}' from {}", chart.chart_name(), path);
 

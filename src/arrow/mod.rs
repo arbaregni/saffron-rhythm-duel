@@ -15,6 +15,10 @@ pub use spawner::{
 //
 // Our imports
 //
+use anyhow::{
+    Result,
+    Context
+};
 use bevy::prelude::*;
 
 use crate::team_markers::{
@@ -27,7 +31,6 @@ use crate::layout::{
     Layer,
     SongPanel,
 };
-
 fn world() -> BBox {
     crate::world()
 }
@@ -35,6 +38,7 @@ fn world() -> BBox {
 
 #[derive(Event)]
 #[derive(Debug)]
+/// Request to load a new chart
 pub struct LoadChartEvent<T: Marker> {
     chart_name: String,
     // Set to zero to start at the beginning
@@ -54,6 +58,14 @@ impl <T: Marker> LoadChartEvent<T> {
     pub fn chart_name(&self) -> &str {
         self.chart_name.as_str()
     }
+}
+
+#[derive(Event,Debug)]
+/// Response to the attempt to load a new chart
+pub struct LoadChartResponse<T: Marker> {
+    /// Either OK and the chart was loaded, or Err with a message to the user on why.
+    pub response: Result<()>,
+    team: T
 }
 
 #[derive(Event)]
@@ -97,35 +109,46 @@ fn _get_audio_bundle<T: Marker>(
         None => AudioBundle::default()
     }
 }
+
 fn process_load_chart_events<T: Marker>(
-    mut load_chart_events: EventReader<LoadChartEvent<T>>,
+    mut load_chart_req: EventReader<LoadChartEvent<T>>,
+    mut load_chart_resp: EventWriter<LoadChartResponse<T>>,
     mut commands: Commands,
     assets: Res<AssetServer>,
     time: Res<Time>,
     // spawner_q: Query<&ArrowSpawner<T>>,
     mut state: ResMut<NextState<SongState<T>>>,
 ) {
-    if load_chart_events.is_empty() {
+    if load_chart_req.is_empty() {
         return;
     }
-    load_chart_events
+    
+    let mut load_chart_impl = |chart_name| -> Result<()> {
+        let spawner = ArrowSpawner::<T>::create(chart_name, time.as_ref())
+                .with_context(|| format!("while attempting to load chart name '{chart_name}'"))?;
+
+        let audio_bundle = _get_audio_bundle::<T>(spawner.chart(), assets.as_ref());
+        
+        let arrow_buf = ArrowBuf::new();
+
+        commands
+            .spawn((spawner, arrow_buf, audio_bundle, T::marker()));
+
+        state.set(SongState::Playing(T::marker()));
+
+        Ok(())
+    };
+
+    load_chart_req
         .read()
         .for_each(|ev| {
             log::info!("consuming load chart event");
             let chart_name = ev.chart_name.as_str();
-
-            let Ok(spawner) = ArrowSpawner::<T>::create(chart_name, time.as_ref())
-                .inspect_err(|e| log::error!("could not create arrow spawner: {e}"))
-                else { return; };
-
-            let audio_bundle = _get_audio_bundle::<T>(spawner.chart(), assets.as_ref());
-            
-            let arrow_buf = ArrowBuf::new();
-
-            commands
-                .spawn((spawner, arrow_buf, audio_bundle, T::marker()));
-
-            state.set(SongState::Playing(T::marker()));
+            let resp = load_chart_impl(chart_name);
+            load_chart_resp.send(LoadChartResponse {
+                response: resp,
+                team: T::marker()
+            });
         });
 }
 
@@ -257,6 +280,7 @@ impl ArrowsPlugin {
     fn build_for_team<'s, T: Marker>(&'s self, app: &mut App, team: T) -> &'s Self {
         app
             .add_event::<LoadChartEvent<T>>()
+            .add_event::<LoadChartResponse<T>>()
             .add_event::<SongFinishedEvent<T>>()
             .insert_state(SongState::NotPlaying::<T>)
 
