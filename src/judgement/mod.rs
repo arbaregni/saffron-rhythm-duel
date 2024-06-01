@@ -125,8 +125,8 @@ impl JudgementSettings {
         }
     }
     pub fn judge(&self, lane_hit: &LaneHit, arrow: &Arrow) -> Grade {
-        let hit_time = lane_hit.time_of_hit();
-        let arrival_time = arrow.arrival_time();
+        let hit_time = lane_hit.beat();
+        let arrival_time = arrow.beat_fraction();
 
         let diff = (arrival_time - hit_time).abs();
         if diff < self.perfect_cutoff {
@@ -182,7 +182,7 @@ fn judge_lane_hits(
 
             // Get the absolute arrival time of each
             .map(|(arrow, sprite)| {
-                let delta_time = arrow.arrival_time() - lane_hit.time_of_hit();
+                let delta_time = arrow.beat_fraction() - lane_hit.beat();
                 let time_diff = delta_time.abs();
                 (arrow, sprite, time_diff)
             })

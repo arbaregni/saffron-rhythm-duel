@@ -6,6 +6,9 @@ use bevy::{
     prelude::*,
 };
 
+use crate::arrow::{
+    ArrowSpawner
+};
 use crate::settings::{
     UserSettings,
     KeyBindings
@@ -28,14 +31,17 @@ pub struct RawLaneHit<T: Marker> {
     lane: Lane,
     /// When the key was pressed
     time_of_hit: f32,
+    /// The beat when the key was pressed
+    beat: f32,
     /// The team (local or remote) that made the hit
     team: T,
 }
 impl <T: Marker> RawLaneHit<T> {
-    pub fn from(lane: Lane, time_of_hit: f32) -> RawLaneHit<T> {
+    pub fn from(lane: Lane, beat: f32, time_of_hit: f32) -> RawLaneHit<T> {
         Self {
             lane,
             time_of_hit,
+            beat,
             team: T::marker()
         }
     }
@@ -47,6 +53,9 @@ impl <T: Marker> RawLaneHit<T> {
     }
     pub fn team(&self) -> T {
         self.team.clone()
+    }
+    pub fn beat(&self) -> f32 {
+        self.beat
     }
 }
 
@@ -89,9 +98,14 @@ fn listen_for_input(
     time: Res<Time>,
     input_mgr: Res<InputManager>,
     keys: Res<ButtonInput<KeyCode>>,
+    spawner: Query<&ArrowSpawner<PlayerMarker>>,
     mut lane_hit_events: EventWriter<LaneHit>,
 ) {
     let now = time.elapsed().as_secs_f32();
+
+    let Some(spawner) = spawner.get_single().ok() else {
+        return; // nothing to do
+    };
 
     input_mgr
         .lane_hit_keycodes
@@ -99,6 +113,7 @@ fn listen_for_input(
         .filter(|(_lane, &keycode)| keys.just_pressed(keycode))
         .map(|(lane, _keycode)| LaneHit {
             lane,
+            beat: spawner.beat_fraction(),
             time_of_hit: now,
             team: PlayerMarker{}
         })

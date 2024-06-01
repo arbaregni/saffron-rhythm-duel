@@ -89,6 +89,10 @@ enum ConnectionMode {
         /// By default, this will take from the configured port in settings.toml
         #[arg(long)]
         remote_port: Option<u16>,
+    },
+    /// Record a song locally
+    Record {
+
     }
 }
 
@@ -146,6 +150,7 @@ fn main() -> Result<()> {
         .add_plugins(remote::RemoteUserPlugin)
         .add_plugins(widgets::WidgetsPlugin)
         .add_plugins(selector_menu::ChartSelectorPlugin)
+        .add_plugins(record::RecordingPlugin)
 
         // Systems
         .add_systems(Startup, setup)

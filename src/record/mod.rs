@@ -1,8 +1,13 @@
 use bevy::prelude::*;
 
+mod controls;
+
 pub struct RecordingPlugin;
 impl Plugin for RecordingPlugin {
-    fn build(&self, _app: &mut App) {
+    fn build(&self, app: &mut App) {
+        app
+            .add_plugins(controls::RecordingControlsPlugin)
+        ;
     }
 }
 

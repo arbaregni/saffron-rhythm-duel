@@ -1,7 +1,7 @@
 {
     "chart_name": "test song",
     "beat_duration_secs": 0.3,
-    "lead_time_secs": 1.5,
+    "lead_time_beats": 4,
     "wait_for_music_end": false,
     "beats": [
         [

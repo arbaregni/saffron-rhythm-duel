@@ -119,9 +119,11 @@ fn process_load_chart_events<T: Marker>(
                 else { return; };
 
             let audio_bundle = _get_audio_bundle::<T>(spawner.chart(), assets.as_ref());
+            
+            let arrow_buf = ArrowBuf::new();
 
             commands
-                .spawn((spawner, audio_bundle, T::marker()));
+                .spawn((spawner, arrow_buf, audio_bundle, T::marker()));
 
             state.set(SongState::Playing(T::marker()));
         });
@@ -131,8 +133,7 @@ fn process_load_chart_events<T: Marker>(
 fn spawn_arrows<T: Marker>(
     mut commands: Commands,
     time: Res<Time>,
-    mut spawner: Query<&mut ArrowSpawner<T>>,
-    mut arrow_buf_query: Query<&mut ArrowBuf, With<T>>,
+    mut spawner: Query<(&mut ArrowSpawner<T>, &mut ArrowBuf), With<T>>,
     panel_query: Query<&SongPanel, With<T>>,
 ) {
     let panel = panel_query.single();
@@ -141,23 +142,16 @@ fn spawn_arrows<T: Marker>(
     //    create the arrows
     // ========================================
     //
-    let mut arrow_buf = arrow_buf_query.single_mut();
+    let (mut spawner, mut arrow_buf) = spawner.single_mut();
 
-    let mut spawner = spawner.single_mut();
+    spawner.tick(&time);
 
-    let Some(beat_tick) = spawner.tick(&time) else {
-        // the clock did not tick, no arrow yet.
-        // move on to the next spawner
-        return;
-    };
-
-    arrow_buf.buf.clear();
-    spawner.create_arrows_in(&mut arrow_buf.buf, time.as_ref(), beat_tick.beat());
+    spawner.create_arrows_in(&mut arrow_buf, time.as_ref());
 
     // =======================================
     //   spawn the arrows
     // =======================================
-    for arrow in arrow_buf.buf.drain(..) {
+    for arrow in arrow_buf.drain() {
 
         let x = panel.lane_bounds(arrow.lane).center().x;
         let y = panel.bounds().top();
@@ -184,6 +178,8 @@ fn spawn_arrows<T: Marker>(
             sprite,
             ..default()
         };
+
+        log::debug!("spawning arrow: {arrow:#?}");
         commands
             .spawn((arrow, sprite_bundle, T::marker()));
 
@@ -191,14 +187,20 @@ fn spawn_arrows<T: Marker>(
 
 }
 
-fn move_arrows<T: Marker>(
-    time: Res<Time>,
+/// Put the arrows where they need to be
+fn position_arrows<T: Marker>(
+    spawner: Query<&ArrowSpawner<T>>,
     mut arrows: Query<(&mut Transform, &Arrow), With<T>>
 ) {
-    let now = time.elapsed().as_secs_f32();
+    let spawner = spawner.single();
     for (mut transform, arrow) in arrows.iter_mut() {
-        let t = (now - arrow.creation_time) / (arrow.arrival_time - arrow.creation_time);
+
+        // calculate the fraction of the way through the lead space we are
+        let t = (spawner.beat_fraction() - arrow.beat_fraction()) / spawner.chart().lead_time_beats();
+
+        // Set the y, where when t = 0% we are at the top and when t = 100% we are at the bottom
         transform.translation.y = world().bottom() * t + world().top() * (1.0 - t);
+        //                      = (world().bottom() - world().top()) * t + world().top()
     }
 }
 
@@ -268,7 +270,7 @@ impl ArrowsPlugin {
             // while the song is playing, move the arrow and check for the end
             .add_systems(Update, (
                     spawn_arrows::<T>,
-                    move_arrows::<T>,
+                    position_arrows::<T>,
                     check_for_song_end::<T>,
                 ).run_if(in_state(
                     SongState::Playing(team.clone())

@@ -41,10 +41,11 @@ pub fn translate_messages_from_remote(
 
     use GameMessage::*;
     match msg {
-        LaneHit { lane } => {
+        LaneHit { lane, beat } => {
             log::debug!("emitting remote lane hit");
             remote_lane_hit.send(RemoteLaneHit::from(
                 lane,
+                beat,
                 now
             ));
         }
@@ -54,10 +55,10 @@ pub fn translate_messages_from_remote(
                 chart_name,
             ));
         }
-        CorrectHit { lane, grade } => {
+        CorrectHit { lane, beat, grade } => {
             log::debug!("emitting remote correct hit");
             remote_correct_hit.send(RawCorrectHitEvent {
-                lane_hit: RemoteLaneHit::from(lane, now),
+                lane_hit: RemoteLaneHit::from(lane, beat, now),
                 grade,
             });
         }
@@ -74,7 +75,8 @@ pub fn translate_events_from_local(
     for ev in lane_hit_ev.read() {
         log::debug!("consuming local lane hit, passing to remote");
         comms.try_send_message(GameMessage::LaneHit {
-            lane: ev.lane()
+            lane: ev.lane(),
+            beat: ev.beat(),
         });
     }
     for ev in load_chart_ev.read() {
@@ -87,6 +89,7 @@ pub fn translate_events_from_local(
         log::debug!("consuming local correct hit, passing to remote");
         comms.try_send_message(GameMessage::CorrectHit {
             lane: ev.lane_hit.lane(),
+            beat: ev.lane_hit.beat(),
             grade: ev.grade.clone(),
         });
     }

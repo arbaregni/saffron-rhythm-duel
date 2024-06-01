@@ -24,7 +24,8 @@ pub mod translate;
 #[derive(Deserialize, Serialize)]
 pub enum GameMessage {
     LaneHit {
-        lane: Lane
+        lane: Lane,
+        beat: f32,
     },
     LoadChart {
         chart_name: String
@@ -32,6 +33,7 @@ pub enum GameMessage {
     CorrectHit {
         lane: Lane,
         grade: SuccessGrade,
+        beat: f32,
     },
 }
 

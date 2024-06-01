@@ -1,5 +1,12 @@
 use bevy::prelude::*;
 
+use crate::arrow::{
+    ArrowSpawner
+};
+use crate::team_markers::{
+    PlayerMarker
+};
+
 #[derive(Component)]
 pub struct TimeText;
 
@@ -9,7 +16,7 @@ pub fn setup(
 ) {
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
 
-    log::info!("seting up time text");
+    log::debug!("seting up time text");
 
     commands
         .spawn(NodeBundle {
@@ -38,11 +45,25 @@ pub fn setup(
         });
 }
 
-pub fn update_time_text(time: Res<Time>, mut query: Query<(&mut Text, &TimeText)>) {
-    let secs = time.elapsed().as_secs_f64();
+pub fn update_time_text(
+    time: Res<Time>,
+    spawner: Query<&ArrowSpawner<PlayerMarker>>,
+    mut query: Query<(&mut Text, &TimeText)>)
+{
+    let content = spawner
+        .get_single()
+        .map(|spawner| {
+            let beats = spawner.beat_fraction();
+            format!("Beats: {beats:.2}")
+        })
+        .unwrap_or(
+            format!("<no song playing>")
+        );
+
 
     for (mut text, _) in query.iter_mut() {
-        text.sections[0].value = format!("Time: {:.2}", secs);
+        text.sections[0].value.clear();
+        text.sections[0].value.push_str(content.as_str());
     }
 
 }

@@ -101,6 +101,7 @@ impl Comms {
                 let task = ctn.connect_to_remote(remote_url.clone());
                 rt.spawn(task);
             }
+            ConnectionMode::Record { } => { /* nothing to do, everything will drop, it's fine */ }
         }
 
         Ok(Self {

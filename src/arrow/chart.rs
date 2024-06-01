@@ -16,9 +16,9 @@ pub struct Chart {
     /// How long a beat lasts, in seconds. Controls how fast the beats are generated
     beat_duration_secs: f32,
 
-    /// How many seconds the notes spend scrolling down before they can be hit. Controls how fast
+    /// How many beats the notes spend scrolling down before they can be hit. Controls how fast
     /// the arrows move.
-    lead_time_secs: f32,
+    lead_time_beats: f32,
 
     /// Each beat is a list of potential notes to be played
     beats: Vec<Vec<Note>>,
@@ -60,12 +60,19 @@ impl Chart {
     pub fn sound_file(&self) -> Option<&str> {
         self.sound_file.as_ref().map(String::as_str)
     }
+    /// Returns the number of seconds per beat (i.e. how fast they are generated)
     pub fn beat_duration_secs(&self) -> f32 {
         self.beat_duration_secs
     }
+    /// Returns number of seconds that arrows are visible.
     pub fn lead_time_secs(&self) -> f32 {
-        self.lead_time_secs
+        self.lead_time_beats * self.beat_duration_secs()
     }
+    /// Returns for how many beats arrows are visible
+    pub fn lead_time_beats(&self) -> f32 {
+        self.lead_time_beats
+    }
+    /// Number of beats that are in the song
     pub fn num_beats(&self) -> u32 {
         self.beats.len() as u32
     }
