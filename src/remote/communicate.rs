@@ -172,10 +172,15 @@ impl Comms {
         
         match send_msg.blocking_send(message) {
             Ok(_) => { },
-            Err(_) => {
-                log::warn!("could not process: dropping outgoing message");
+            Err(e) => {
+                log::warn!("could not process: dropping outgoing message due to {e}");
             }
         };
+        if send_msg.is_closed() {
+            log::warn!("send_msg is closed, dropping channel");
+            self.send_msg = None;
+        }
+
     }
 }
 

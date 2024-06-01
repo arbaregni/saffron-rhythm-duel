@@ -126,31 +126,30 @@ fn main() -> Result<()> {
 
     log::info!("Initializing app...");
 
-    let comms = remote::communicate::Comms::try_init(&cli, &settings)?;
-
     let window_plugin = make_window_plugin(&settings);
 
     App::new()
-        // Load resources
-        .insert_resource(cli)
-        .insert_resource(settings)
-        .insert_resource(comms)
-        .insert_resource(ClearColor(BACKGROUND_COLOR))
-
         // Configure default plugins
         .add_plugins(DefaultPlugins
             .set(window_plugin)
             .disable::<bevy::log::LogPlugin>()
         )
         // Load custom plugins
-        .add_plugins(arrow::ArrowsPlugin)
-        .add_plugins(judgement::JudgementPlugin)
-        .add_plugins(layout::UiPlugin)
-        .add_plugins(input::InputPlugin)
-        .add_plugins(remote::RemoteUserPlugin)
-        .add_plugins(widgets::WidgetsPlugin)
-        .add_plugins(selector_menu::ChartSelectorPlugin)
-        .add_plugins(record::RecordingPlugin)
+        .add_plugins((
+            arrow::ArrowsPlugin,
+            judgement::JudgementPlugin,
+            layout::UiPlugin,
+            input::InputPlugin,
+            widgets::WidgetsPlugin,
+            selector_menu::ChartSelectorPlugin,
+            remote::RemoteUserPlugin,
+            record::RecordingPlugin,
+        ))
+
+        // Load resources
+        .insert_resource(cli)
+        .insert_resource(settings)
+        .insert_resource(ClearColor(BACKGROUND_COLOR))
 
         // Systems
         .add_systems(Startup, setup)
