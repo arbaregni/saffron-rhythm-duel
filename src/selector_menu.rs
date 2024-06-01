@@ -5,7 +5,7 @@ use crate::team_markers::{
     Marker
 };
 use crate::arrow::{
-    LoadChartEvent,
+    LoadChartRequest,
     LoadChartResponse,
     SongFinishedEvent
 };
@@ -204,7 +204,7 @@ fn interact_with_buttons(
     >,
     mut chart_selector: Query<&mut ChartSelector>,
     mut state: ResMut<NextState<ChartSelectorState>>,
-    mut load_chart_ev: EventWriter<LoadChartEvent<PlayerMarker>>,
+    mut load_chart_ev: EventWriter<LoadChartRequest<PlayerMarker>>,
 ) {
     let mut chart_selector = chart_selector.single_mut(); // otherwise, this system would have nothing
                                                           // to do
@@ -234,7 +234,7 @@ fn interact_with_buttons(
     if do_load_chart {
         if let Some(chart_name) = chart_selector.selected_chart_name() {
             log::info!("emitting load chart event");
-            load_chart_ev.send(LoadChartEvent::create(
+            load_chart_ev.send(LoadChartRequest::create(
                 chart_name.to_string(),
             ));
             state.set(ChartSelectorState::LoadingChart);

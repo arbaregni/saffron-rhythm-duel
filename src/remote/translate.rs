@@ -8,7 +8,7 @@ use crate::team_markers::{
     EnemyMarker
 };
 use crate::arrow::{
-    LoadChartEvent
+    LoadChartRequest
 };
 
 use super::{
@@ -30,7 +30,7 @@ pub fn translate_messages_from_remote(
     time: Res<Time>,
     mut listener: ResMut<Comms>,
     mut remote_lane_hit: EventWriter<RemoteLaneHit>,
-    mut remote_load_chart: EventWriter<LoadChartEvent<EnemyMarker>>,
+    mut remote_load_chart: EventWriter<LoadChartRequest<EnemyMarker>>,
     mut remote_correct_hit: EventWriter<RawCorrectHitEvent<EnemyMarker>>,
 ) {
     let Some(msg) = listener.try_recv_message() else {
@@ -51,7 +51,7 @@ pub fn translate_messages_from_remote(
         }
         LoadChart { chart_name } => {
             log::debug!("emitting remote chart load");
-            remote_load_chart.send(LoadChartEvent::create(
+            remote_load_chart.send(LoadChartRequest::create(
                 chart_name,
             ));
         }
@@ -69,7 +69,7 @@ pub fn translate_messages_from_remote(
 pub fn translate_events_from_local(
     mut comms: ResMut<Comms>,
     mut lane_hit_ev: EventReader<LaneHit>,
-    mut load_chart_ev: EventReader<LoadChartEvent<PlayerMarker>>,
+    mut load_chart_ev: EventReader<LoadChartRequest<PlayerMarker>>,
     mut correct_hit_ev: EventReader<CorrectHitEvent>,
 ) {
     for ev in lane_hit_ev.read() {

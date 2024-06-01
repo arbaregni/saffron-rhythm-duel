@@ -5,7 +5,7 @@ use bevy::text::{
 
 use crate::arrow::{
     SongState,
-    LoadChartEvent, 
+    LoadChartRequest, 
 };
 use crate::layout::{
     Layer,
@@ -89,7 +89,7 @@ pub fn setup_networking_status_text (
 
 fn update_status_text_on_remote_event(
     mut text_q: Query<(&mut Text, &mut StatusText)>,
-    mut load_chart_ev: EventReader<LoadChartEvent<EnemyMarker>>,
+    mut load_chart_ev: EventReader<LoadChartRequest<EnemyMarker>>,
     comms: Res<Comms>,
 ) {
     if load_chart_ev.is_empty() {

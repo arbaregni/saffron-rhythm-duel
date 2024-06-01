@@ -39,14 +39,14 @@ fn world() -> BBox {
 #[derive(Event)]
 #[derive(Debug)]
 /// Request to load a new chart
-pub struct LoadChartEvent<T: Marker> {
+pub struct LoadChartRequest<T: Marker> {
     chart_name: String,
     // Set to zero to start at the beginning
     beat_count: u32,
     team: T,
 }
-impl <T: Marker> LoadChartEvent<T> {
-    pub fn create(chart_name: String) -> LoadChartEvent<T> {
+impl <T: Marker> LoadChartRequest<T> {
+    pub fn create(chart_name: String) -> LoadChartRequest<T> {
         Self {
             chart_name,
             beat_count: 0,
@@ -54,7 +54,7 @@ impl <T: Marker> LoadChartEvent<T> {
         }
     }
 }
-impl <T: Marker> LoadChartEvent<T> {
+impl <T: Marker> LoadChartRequest<T> {
     pub fn chart_name(&self) -> &str {
         self.chart_name.as_str()
     }
@@ -111,7 +111,7 @@ fn _get_audio_bundle<T: Marker>(
 }
 
 fn process_load_chart_events<T: Marker>(
-    mut load_chart_req: EventReader<LoadChartEvent<T>>,
+    mut load_chart_req: EventReader<LoadChartRequest<T>>,
     mut load_chart_resp: EventWriter<LoadChartResponse<T>>,
     mut commands: Commands,
     assets: Res<AssetServer>,
@@ -279,7 +279,7 @@ impl Plugin for ArrowsPlugin {
 impl ArrowsPlugin {
     fn build_for_team<'s, T: Marker>(&'s self, app: &mut App, team: T) -> &'s Self {
         app
-            .add_event::<LoadChartEvent<T>>()
+            .add_event::<LoadChartRequest<T>>()
             .add_event::<LoadChartResponse<T>>()
             .add_event::<SongFinishedEvent<T>>()
             .insert_state(SongState::NotPlaying::<T>)
