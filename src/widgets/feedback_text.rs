@@ -12,15 +12,17 @@ use crate::team_markers::{
     Marker,
     PlayerMarker
 };
-use super::{
+use crate::judgement::{
     metrics,
+    SongMetrics,
+    grading::{
+        SuccessGrade,
+        FailingGrade,
+    },
     CorrectHitEvent,
     IncorrectHitEvent,
     DroppedNoteEvent,
     MissfireEvent,
-    SuccessGrade,
-    FailingGrade,
-    SongMetrics,
 };
 
 #[derive(Component)]

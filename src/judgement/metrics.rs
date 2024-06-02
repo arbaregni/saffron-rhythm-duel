@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 
-use super::{
+use crate::judgement::{
     CorrectHitEvent,
     IncorrectHitEvent,
     DroppedNoteEvent,
     MissfireEvent,
-    FailingGrade
+    grading::{
+        FailingGrade,
+    },
 };
 use crate::arrow::{
     SongState

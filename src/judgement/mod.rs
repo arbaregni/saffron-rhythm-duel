@@ -1,154 +1,41 @@
-mod metrics;
-mod feedback_text;
-mod sound_alerts;
+pub mod metrics;
+pub mod grading;
 
-use serde::{
-    Deserialize,
-    Serialize
-};
 use bevy::prelude::*;
 
 use crate::team_markers::{
     PlayerMarker,
     EnemyMarker,
-    Marker,
 };
 
 use crate::arrow::{
     Arrow,
+    ArrowSpawner,
 };
 use crate::layout::{
     SongPanel,
     BBox,
 };
 use crate::input::{
-    RawLaneHit,
     LaneHit
 };
 
 pub use metrics::{
     SongMetrics
 };
+pub use grading::{
+    CorrectHitEvent,
+    IncorrectHitEvent,
+    MissfireEvent,
+    RawCorrectHitEvent,
+    RawIncorrectHitEvent,
+    RawMissfireEvent,
+    JudgementSettings
+};
 
 fn world() -> BBox {
     crate::world()
 }
-
-pub const KEYPRESS_TOLERANCE_SECS: f32 = 0.5; // in seconds
-                                              
-/// Represents when the user hits the lane when an arrow is passing the target line, and it
-/// completes that arrow.
-#[derive(Event)]
-#[derive(Debug,Clone,Deserialize,Serialize)]
-pub struct RawCorrectHitEvent<T: Marker> {
-    /// The lane hit
-    pub lane_hit: RawLaneHit<T>,
-    /// The grade the judgment system gave
-    pub grade: SuccessGrade,
-}
-impl <T: Marker> RawCorrectHitEvent<T> {
-    fn grade(&self) -> SuccessGrade {
-        self.grade
-    }
-}
-pub type CorrectHitEvent = RawCorrectHitEvent<PlayerMarker>;
-
-/// Represents when the user hits the lane, and there is a nearby note,
-/// But we don't want to count it as 'completing' that note.
-#[derive(Event)]
-#[derive(Debug,Clone,Deserialize,Serialize)]
-pub struct RawIncorrectHitEvent<T: Marker> {
-    /// THe lane hit
-    lane_hit: RawLaneHit<T>,
-    /// The grade the judgement system gave
-    pub grade: FailingGrade,
-}
-pub type IncorrectHitEvent = RawIncorrectHitEvent<PlayerMarker>;
-
-/// Event representing when the user attempts to complete a note, but are too early or late to be
-/// considered 'correct'
-#[derive(Event)]
-#[derive(Debug,Clone,Deserialize,Serialize)]
-pub struct RawMissfireEvent<T: Marker> {
-    /// The lane hit that originated this missfire
-    lane_hit: RawLaneHit<T>,
-}
-pub type MissfireEvent = RawMissfireEvent<PlayerMarker>;
-
-#[derive(Debug,Copy,Clone,Deserialize,Serialize)]
-pub enum SuccessGrade {
-    Perfect,
-    Good,
-    Fair,
-}
-impl SuccessGrade {
-    pub fn is_perfect(self) -> bool {
-        use SuccessGrade::*;
-        match self {
-            Perfect => true,
-            Good | Fair => false,
-        }
-    }
-}
-
-#[derive(Debug,Copy,Clone,Deserialize,Serialize)]
-pub enum FailingGrade {
-    Early,
-    Late,
-}
-
-
-#[derive(Resource)]
-pub struct JudgementSettings {
-    // passing grades are perfect, good, and fair
-    perfect_cutoff: f32,
-    good_cutoff: f32,
-    fair_cutoff: f32,
-
-    // if it failed, we just say early or late.
-    // There's also the possibility that we couldn't find a note whatsoever
-}
-
-
-#[derive(Debug, Copy, Clone)]
-pub enum Grade {
-    Success(SuccessGrade),
-    Fail(FailingGrade)
-}
-
-impl JudgementSettings {
-    pub fn new() -> Self {
-        Self {
-            perfect_cutoff: 0.05,
-            good_cutoff:    0.06,
-            fair_cutoff:    0.08,
-        }
-    }
-    pub fn judge(&self, lane_hit: &LaneHit, arrow: &Arrow) -> Grade {
-        let hit_time = lane_hit.beat();
-        let arrival_time = arrow.beat_fraction();
-
-        let diff = (arrival_time - hit_time).abs();
-        if diff < self.perfect_cutoff {
-            Grade::Success(SuccessGrade::Perfect)
-        } else if diff < self.good_cutoff {
-            Grade::Success(SuccessGrade::Good)
-        } else if diff < self.fair_cutoff {
-            Grade::Success(SuccessGrade::Fair)
-        } else {
-            
-            if hit_time < arrival_time {
-                // hit before it arrived
-                Grade::Fail(FailingGrade::Early)
-            } else {
-                Grade::Fail(FailingGrade::Late)
-            }
-
-        }
-
-    } 
-}
-
 
 
 /// Listens for Input actions where the user (correctly or incorrectly) attempts to complete a note
@@ -157,12 +44,17 @@ impl JudgementSettings {
 ///   -> IncorrectHitEvent
 ///   -> MissfireEvent
 fn judge_lane_hits(
+    // consumes input events
     mut input_events: EventReader<LaneHit>,
-    mut query: Query<(&mut Arrow, &mut Sprite)>,
+
+    // needed to do the judgment
+    mut arrow_q: Query<(&mut Arrow, &mut Sprite)>,
+    judgement: Res<JudgementSettings>,
+
+    // outputs one of the judgement events
     mut correct_arrow_events: EventWriter<CorrectHitEvent>,
     mut incorrect_arrow_events: EventWriter<IncorrectHitEvent>,
     mut missfire_events: EventWriter<MissfireEvent>,
-    judgement: Res<JudgementSettings>,
 ) {
     for lane_hit in input_events.read() {
                
@@ -171,7 +63,7 @@ fn judge_lane_hits(
         // ---------------------------------------------- 
 
         use ordered_float::NotNan;
-        let search_result = query
+        let search_result = arrow_q
             .iter_mut()
             
             // only consider arrows that have not been hit yet
@@ -182,7 +74,7 @@ fn judge_lane_hits(
 
             // Get the absolute arrival time of each
             .map(|(arrow, sprite)| {
-                let delta_time = arrow.beat_fraction() - lane_hit.beat();
+                let delta_time = arrow.arrival_beat() - lane_hit.beat();
                 let time_diff = delta_time.abs();
                 (arrow, sprite, time_diff)
             })
@@ -213,15 +105,16 @@ fn judge_lane_hits(
         // ---------------------------------------------- 
         //   found an arrow, send it off to get judged
         // ---------------------------------------------- 
-        log::debug!("arrow found, judging now...");
         let grade = judgement.judge(&lane_hit, arrow.as_ref());
+
+        log::debug!("arrow found: {arrow:?}, grade = {grade:?}...");
 
 
         // ---------------------------------------------- 
         //    Process the grade
         // ---------------------------------------------- 
         match grade {
-            Grade::Success(grade) => {
+            grading::Grade::Success(grade) => {
                 // send the correct hit event
 
                 log::debug!("marking arrow as completed");
@@ -233,7 +126,7 @@ fn judge_lane_hits(
                     grade,
                 });
             }
-            Grade::Fail(grade) => {
+            grading::Grade::Fail(grade) => {
                 log::debug!("sending incorrect hit event");
                 incorrect_arrow_events.send(IncorrectHitEvent {
                     lane_hit: lane_hit.clone(),
@@ -275,8 +168,6 @@ fn despawn_arrows(
     for (entity, transform, arrow) in query.iter() {
         let y = transform.translation.y;
         if y < panel.arrow_drop_line_y() {
-            log::debug!("despawning arrow: {arrow:?}");
-
             // it's low enough to despawn
             commands.entity(entity).despawn();
 
@@ -312,11 +203,8 @@ impl Plugin for JudgementPlugin {
             // Add the systems
             .add_systems(Update, judge_lane_hits)
             .add_systems(Update, despawn_arrows)
-            .add_systems(Update, sound_alerts::play_sound_on_hit)
-            .add_systems(Update, sound_alerts::play_sound_on_dropped_note)
             
             // Add the plugins
-            .add_plugins(feedback_text::FeedbackTextPlugin)
             .add_plugins(metrics::MetricsPlugin)
         ;
     }

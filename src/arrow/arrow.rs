@@ -10,14 +10,17 @@ pub struct Arrow {
     pub (in crate::arrow) creation_time: f32,
     /// Which beat number this was created for
     pub (in crate::arrow) beat_number: u32,
+    /// Which beat this is supposed to arrive at
+    pub arrival_beat: f32,
 }
 impl Arrow {
-    pub fn new(lane: Lane, creation_time: f32, beat_number: u32) -> Arrow {
+    pub fn new(lane: Lane, creation_time: f32, beat_number: u32, arrival_beat: f32) -> Arrow {
         Arrow {
             lane,
             status: ArrowStatus::Pending,
             creation_time,
             beat_number,
+            arrival_beat,
         }
     }
     pub fn height() -> f32 {
@@ -40,6 +43,9 @@ impl Arrow {
     }
     pub fn beat_fraction(&self) -> f32 {
         self.beat_number() as f32
+    }
+    pub fn arrival_beat(&self) -> f32 {
+        self.arrival_beat
     }
 }
 

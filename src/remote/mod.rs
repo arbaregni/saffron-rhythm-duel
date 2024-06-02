@@ -15,7 +15,9 @@ use crate::lane::{
 };
 
 use crate::judgement::{
-    SuccessGrade,
+    grading::{
+        SuccessGrade,
+    }
 };
 
 pub mod communicate;

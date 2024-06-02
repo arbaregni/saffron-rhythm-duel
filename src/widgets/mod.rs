@@ -2,6 +2,8 @@ use bevy::prelude::*;
 mod lane_box;
 mod target_sparkles;
 mod lane_widgets;
+mod feedback_text;
+mod sound_alerts;
 
 use crate::team_markers::{
     PlayerMarker,
@@ -15,8 +17,12 @@ pub struct WidgetsPlugin;
 impl Plugin for WidgetsPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_plugins(lane_box::LaneBoxPlugin)
-            .add_plugins(target_sparkles::TargetSparklesPlugin)
+            .add_plugins((
+                    lane_box::LaneBoxPlugin,
+                    target_sparkles::TargetSparklesPlugin,
+                    feedback_text::FeedbackTextPlugin,
+                    sound_alerts::SoundAlertsPlugin,
+            ))
 
             // everything that needs the song panels to set up gets run here
             .add_systems(OnEnter(LayoutState::Done), (

@@ -5,42 +5,19 @@
     "wait_for_music_end": false,
     "beats": [
         [
-            {
-                "lane": "L1"
-            }
+
         ],
         [
-            {
-                "lane": "L2"
-            }
+
         ],
         [
-            {
-                "lane": "R1"
-            }
+            { "lane": "L1" }
         ],
         [
-            {
-                "lane": "R2"
-            }
+
         ],
         [
-            {
-                "lane": "L1"
-            },
-            {
-                "lane": "R2"
-            }
-        ],
-        [],
-        [],
-        [
-            {
-                "lane": "L2"
-            },
-            {
-                "lane": "R1"
-            }
+
         ]
     ]
 }

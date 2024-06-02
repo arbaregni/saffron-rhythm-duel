@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 
-use super::{
+use crate::judgement::{
     DroppedNoteEvent,
     CorrectHitEvent,
-    SuccessGrade,
+    grading::{
+        SuccessGrade,
+    }
 };
 
 pub fn play_sound_on_hit(
@@ -52,4 +54,14 @@ pub fn play_sound_on_dropped_note(
         );
 }
 
-
+pub struct SoundAlertsPlugin;
+impl Plugin for SoundAlertsPlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .add_systems(Update, (
+                play_sound_on_hit,
+                play_sound_on_dropped_note
+            ))
+        ;
+    }
+}

@@ -141,7 +141,8 @@ impl <T: Marker> ArrowSpawner<T> {
 
         for note in chart.get(beat) {
             let lane = note.lane();
-            let arrow = Arrow::new(lane, now, beat);
+            let arrival = beat as f32 + self.chart().lead_time_beats();
+            let arrow = Arrow::new(lane, now, beat, arrival);
             buf.push(arrow);
         }
     }
