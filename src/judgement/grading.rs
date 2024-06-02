@@ -19,7 +19,12 @@ use crate::input::{
     LaneHit
 };
 
-pub const KEYPRESS_TOLERANCE_SECS: f32 = 0.5; // in seconds
+
+// these are all in fractions of a beat
+const DEFAULT_PERFECT_CUTOFF: f32 = 0.10;
+const DEFAULT_GOOD_CUTOFF: f32    = 0.20;
+const DEFAULT_FAIR_CUTOFF: f32    = 0.40;
+
                                               
 /// Represents when the user hits the lane when an arrow is passing the target line, and it
 /// completes that arrow.
@@ -107,9 +112,9 @@ pub enum Grade {
 impl JudgementSettings {
     pub fn new() -> Self {
         Self {
-            perfect_cutoff: 0.10, // fractions of a beat
-            good_cutoff:    0.20,
-            fair_cutoff:    0.40,
+            perfect_cutoff: DEFAULT_PERFECT_CUTOFF,
+            good_cutoff:    DEFAULT_GOOD_CUTOFF,
+            fair_cutoff:    DEFAULT_FAIR_CUTOFF,
         }
     }
     pub fn judge(&self, lane_hit: &LaneHit, arrow: &Arrow) -> Grade {
