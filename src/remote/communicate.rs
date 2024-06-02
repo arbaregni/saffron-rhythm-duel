@@ -25,7 +25,7 @@ use url::Url;
 use crate::{
     ConnectionMode,
     CliArgs,
-    settings::UserSettings,
+    user_settings::UserSettings,
 };
 
 use super::{

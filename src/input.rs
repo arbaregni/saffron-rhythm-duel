@@ -9,7 +9,7 @@ use bevy::{
 use crate::arrow::{
     ArrowSpawner
 };
-use crate::settings::{
+use crate::user_settings::{
     UserSettings,
     KeyBindings
 };

@@ -7,7 +7,7 @@ use serde::{
 
 use crate::{
     CliArgs,
-    settings::UserSettings
+    user_settings::UserSettings
 };
 
 use crate::lane::{

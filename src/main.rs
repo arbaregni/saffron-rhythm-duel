@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-mod settings;
+mod user_settings;
 mod logging;
 mod arrow;
 mod lane;
@@ -98,7 +98,7 @@ enum ConnectionMode {
 
 const BASE_FONT_NAME: &str = "fonts/FiraSans-Bold.ttf";
 
-fn make_window_plugin(settings: &settings::UserSettings) -> bevy::window::WindowPlugin {
+fn make_window_plugin(settings: &user_settings::UserSettings) -> bevy::window::WindowPlugin {
     use bevy::window::*;
 
     let primary_window = Window {
@@ -122,7 +122,7 @@ fn main() -> Result<()> {
 
     logging::configure_logging(&cli)?;
 
-    let settings = settings::load_settings(&cli)?;
+    let settings = user_settings::load_settings(&cli)?;
 
     log::info!("Initializing app...");
 

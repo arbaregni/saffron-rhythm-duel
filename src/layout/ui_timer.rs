@@ -46,7 +46,6 @@ pub fn setup(
 }
 
 pub fn update_time_text(
-    time: Res<Time>,
     spawner: Query<&ArrowSpawner<PlayerMarker>>,
     mut query: Query<(&mut Text, &TimeText)>)
 {

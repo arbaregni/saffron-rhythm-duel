@@ -17,7 +17,9 @@ use crate::team_markers::{
 use crate::judgement::{
     DroppedNoteEvent
 };
-use crate::settings::UserSettings;
+use crate::user_settings::{
+    UserSettings
+};
 
 #[derive(Component)]
 pub struct LaneTarget {

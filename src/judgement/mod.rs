@@ -10,7 +10,6 @@ use crate::team_markers::{
 
 use crate::arrow::{
     Arrow,
-    ArrowSpawner,
 };
 use crate::layout::{
     SongPanel,
