@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-mod controls;
+pub mod controls;
 
 pub struct RecordingPlugin;
 impl Plugin for RecordingPlugin {

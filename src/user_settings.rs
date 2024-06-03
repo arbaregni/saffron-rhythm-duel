@@ -14,7 +14,6 @@ use serde::{
 };
 
 use crate::{
-    lane::Lane,
     CliArgs,
     project_dirs,
 };
@@ -69,34 +68,13 @@ impl std::default::Default for UserSettings {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct KeyBindings {
-    pub lane_hit_L1: String,
-    pub lane_hit_L2: String,
-    pub lane_hit_R1: String,
-    pub lane_hit_R2: String,
-}
-impl KeyBindings {
-    pub fn key_name(&self, lane: Lane) -> &str {
-        match lane {
-            Lane::L1 => self.lane_hit_L1.as_str(),
-            Lane::L2 => self.lane_hit_L2.as_str(),
-            Lane::R1 => self.lane_hit_R1.as_str(),
-            Lane::R2 => self.lane_hit_R2.as_str(),
-        }
-    }
-}
-// TODO: use the default somehow
-impl std::default::Default for KeyBindings {
-    fn default() -> Self {
-        Self {
-            lane_hit_L1: "a".to_string(),
-            lane_hit_L2: "s".to_string(),
-            lane_hit_R1: "d".to_string(),
-            lane_hit_R2: "f".to_string(),
-        }
-    }
+    #[serde(default)]
+    pub lane_hit_keymap: crate::input::LaneHitControls,
+    #[serde(default)]
+    pub record_keymap: crate::record::controls::RecordingControls,
 }
 
 const SETTINGS_FILENAME: &str = "settings.toml";

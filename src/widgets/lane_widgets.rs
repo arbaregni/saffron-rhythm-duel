@@ -101,7 +101,13 @@ pub fn setup_lane_letters<T: Marker>(
 
     for (lane, bounds) in panel.lanes().iter() {
 
-        let text_content = settings.keybindings.key_name(lane).to_uppercase();
+        let key = settings.keybindings.lane_hit_keymap.keycode(lane);
+        let text_content = crate::keycode_serde::to_name(key)
+            .inspect_err(|e| {
+                log::error!("could not setup lane letter for lane {lane:?}, {e}")
+            })
+            .unwrap_or("")
+            .to_uppercase();
 
         let font = asset_server.load(crate::BASE_FONT_NAME);
         let font_size = 50.0;
