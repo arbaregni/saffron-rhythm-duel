@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 mod keycode_serde;
 mod user_settings;
 mod logging;
