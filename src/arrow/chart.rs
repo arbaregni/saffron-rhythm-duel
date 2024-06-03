@@ -24,6 +24,9 @@ pub struct Chart {
     /// the arrows move.
     lead_time_beats: f32,
 
+    /// Song end beats. Defaults to zero
+    song_end_beats: Option<f32>,
+
     /// Each beat is a list of potential notes to be played
     beats: Vec<Vec<Note>>,
 
@@ -81,6 +84,12 @@ impl Chart {
     /// Number of beats that are in the song
     pub fn num_beats(&self) -> u32 {
         self.beats.len() as u32
+    }
+    /// last beat that we see passing through target line
+    pub fn last_beat(&self) -> f32 {
+        let beats = self.beats.len() as f32;
+        let wait_period = self.song_end_beats.unwrap_or(0.0);
+        beats + wait_period
     }
     pub fn total_duration(&self) -> f32 {
         self.beat_duration_secs() * (self.num_beats() as f32)

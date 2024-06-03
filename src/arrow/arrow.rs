@@ -35,6 +35,9 @@ impl Arrow {
     pub fn mark_completed(&mut self) {
         self.status = ArrowStatus::Completed;
     }
+    pub fn marked_dropped(&mut self) {
+        self.status = ArrowStatus::Dropped;
+    }
     pub fn creation_time(&self) -> f32 {
         self.creation_time
     }
@@ -56,6 +59,8 @@ pub enum ArrowStatus {
     Pending,
     /// Has been clicked
     Completed,
+    /// Can never be clicked again
+    Dropped,
 }
 impl ArrowStatus {
     /// Is this arrow still on the  board?
@@ -64,6 +69,7 @@ impl ArrowStatus {
         match self {
             ArrowStatus::Pending => true,
             ArrowStatus::Completed => false,
+            ArrowStatus::Dropped => false,
         }
     }
 }

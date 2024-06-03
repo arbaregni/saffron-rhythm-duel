@@ -52,7 +52,7 @@ pub fn update_time_text(
     let content = spawner
         .get_single()
         .map(|spawner| {
-            let beats = spawner.beat_fraction();
+            let beats = spawner.curr_beat();
             format!("Beats: {beats:.2}")
         })
         .unwrap_or(

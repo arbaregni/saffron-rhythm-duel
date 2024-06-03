@@ -58,8 +58,8 @@ struct CliArgs {
     log_filters: Option<Vec<logging::LogFilter>>,
 
     #[arg(short, long)]
-    /// Enable debug messaging
-    debug: bool,
+    /// Enable showing the beat numbers on the notes
+    show_beat_numbers: bool,
 
     #[arg(long)]
     /// Force the program to reset the settings to defaults on load.

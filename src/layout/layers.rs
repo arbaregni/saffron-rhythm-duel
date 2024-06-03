@@ -1,6 +1,7 @@
 #[repr(u8)]
 pub enum Layer {
     Arrows = 0,
+    AboveArrows = 5,
     Targets = 10,
     AboveTargets = 20,
     SongEffects = 30,

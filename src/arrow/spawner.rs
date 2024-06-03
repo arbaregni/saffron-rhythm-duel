@@ -95,10 +95,14 @@ impl <T: Marker> ArrowSpawner<T> {
     pub fn beat_count(&self) -> u32 {
         self.beat_count
     }
-    /// Returns the beats that we have seen, including fractional beats
+    /// Returns the beats that we have spawned, including fractional beats
     pub fn beat_fraction(&self) -> f32 {
         let frac = self.spawn_timer.fraction();
         self.beat_count() as f32 + frac
+    }
+    /// Returns the current beat that is passing through the target line
+    pub fn curr_beat(&self) -> f32 {
+        self.beat_fraction() - self.chart().lead_time_beats()
     }
 
     pub fn chart(&self) -> &Chart {
@@ -162,6 +166,21 @@ impl <T: Marker> ArrowSpawner<T> {
                 });
             self.last_spawned_beat = Some(beat); 
         }
+    }
+    pub fn is_finished(&self) -> bool {
+        // if there's something we need to spawn, then we can't be finished
+        if self.next_beat_to_spawn().is_some() {
+            return false
+        }
+
+        if self.curr_beat() < self.chart().last_beat() {
+            return false
+        }
+
+        log::info!("next beat to spawn: next beat to spawn is {:?} and {:.4} >= {:.4}, ending song now",
+            self.next_beat_to_spawn(), self.curr_beat(), self.chart().last_beat()
+        );
+        true
     }
 
     pub fn move_forward(&mut self) {

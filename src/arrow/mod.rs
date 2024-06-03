@@ -5,6 +5,7 @@ pub use chart::{
 mod arrow;
 pub use arrow::{
     Arrow,
+    ArrowStatus
 };
 mod spawner;
 pub use spawner::{
@@ -41,6 +42,8 @@ fn world() -> BBox {
     crate::world()
 }
 
+/// For the text shown with debug flag --show-beat-numbers
+const BEAT_NUMBER_TEXT_COLOR: Color = Color::rgb(0.1, 0.1, 0.1);
 
 #[derive(Event)]
 #[derive(Debug)]
@@ -164,6 +167,8 @@ fn spawn_arrows<T: Marker>(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
     time: Res<Time>,
+    cli: Res<crate::CliArgs>,
+    asset_server: Res<AssetServer>,
     mut spawner: Query<(&mut ArrowSpawner<T>, &mut ArrowBuf), With<T>>,
     panel_query: Query<&SongPanel, With<T>>,
 ) {
@@ -209,10 +214,59 @@ fn spawn_arrows<T: Marker>(
             transform,
             ..default()
         };
-
         log::debug!("spawning arrow: {arrow:#?}");
-        commands
-            .spawn((arrow, bundle, T::marker()));
+        let mut entity = commands.spawn((
+            arrow.clone(),
+            bundle,
+            T::marker(),
+        ));
+
+        // helpful debugging
+        if cli.show_beat_numbers {
+
+            let text_content = format!("{}", arrow.beat_number());
+
+            log::info!("spawning with text content: {}", text_content);
+
+            let font = asset_server.load(crate::BASE_FONT_NAME);
+            let font_size = 20.0;
+            let color = BEAT_NUMBER_TEXT_COLOR;
+
+            let style = TextStyle {
+                font, font_size, color
+            };
+            let text = Text {
+                sections: vec![
+                    TextSection {
+                        value: text_content,
+                        style
+                    }
+                ],
+                ..default()
+            };
+            let pos = Vec3::new(
+                0.0,
+                0.0,
+                Layer::AboveArrows.z(),
+            );
+            let transform = Transform {
+                translation: pos,
+                ..default()
+            };
+            let text_bundle = Text2dBundle {
+                text,
+                transform,
+                ..default()
+            };
+
+            // give the entity the text component
+            entity.with_children(|b| {
+                b.spawn((
+                    text_bundle,
+                ));
+            });
+
+        }
 
     }
 
@@ -237,23 +291,14 @@ fn position_arrows<T: Marker>(
 
 
 fn check_for_song_end<T: Marker>(
-    _commands: Commands,
-    time: Res<Time>,
-    arrows: Query<&Arrow, With<T>>,
     spawner_q: Query<&ArrowSpawner<T>>,
     mut state: ResMut<NextState<SongState<T>>>,
 ) {
-    let now = time.elapsed().as_secs_f32();
+    let Some(spawner) = spawner_q.get_single().ok() else {
+        return;
+    };
 
-    let spawner = spawner_q.single();
-
-    let finished_with_beats = spawner.beat_count() > spawner.chart().num_beats();
-    let all_arrows_despawned = arrows.is_empty();
-    
-    let song_end = spawner.song_start() + spawner.chart().total_duration();
-    let buffer_time = 1.2 * spawner.chart().lead_time_secs();
-
-    if finished_with_beats && all_arrows_despawned && now > song_end + buffer_time {
+    if spawner.is_finished() {
         log::info!("set state: not playing song {:?}", T::team());
         state.set(SongState::NotPlaying);
     }
