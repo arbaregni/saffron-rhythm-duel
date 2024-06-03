@@ -74,7 +74,7 @@ pub struct KeyBindings {
     #[serde(default)]
     pub lane_hit_keymap: crate::input::LaneHitControls,
     #[serde(default)]
-    pub record_keymap: crate::record::controls::RecordingControls,
+    pub recording_keymap: crate::record::controls::RecordingKeymap,
 }
 
 const SETTINGS_FILENAME: &str = "settings.toml";

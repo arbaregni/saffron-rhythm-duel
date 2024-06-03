@@ -3,6 +3,7 @@ use serde::{
     Deserialize,
     Serialize
 };
+use crate::user_settings::UserSettings;
 use crate::keycode_serde;
 use crate::arrow::{
     ArrowSpawner
@@ -13,7 +14,7 @@ use crate::team_markers::{
 };
 
 #[derive(Debug,PartialEq,Eq,Serialize,Deserialize)]
-pub struct RecordingControls {
+pub struct RecordingKeymap {
     /// Pauses the playback.
     #[serde(with = "keycode_serde")]
     pub pause: KeyCode,
@@ -24,7 +25,7 @@ pub struct RecordingControls {
     #[serde(with = "keycode_serde")]
     pub backward: KeyCode
 }
-impl Default for RecordingControls {
+impl Default for RecordingKeymap {
     fn default() -> Self {
         Self {
             pause: KeyCode::Space,
@@ -36,9 +37,11 @@ impl Default for RecordingControls {
 
 fn handle_pause_actions<T: Marker>(
     mut spawner_q: Query<&mut ArrowSpawner<T>>,
+    settings: Res<UserSettings>,
     keys: Res<ButtonInput<KeyCode>>,
 ) {
-    if !keys.just_pressed(KeyCode::Space) {
+    let keymap = &settings.keybindings.recording_keymap;
+    if !keys.just_pressed(keymap.pause) {
         return;
     }
     for mut spawner in spawner_q.iter_mut() {
@@ -49,8 +52,24 @@ fn handle_pause_actions<T: Marker>(
 
 fn handle_scroll_actions<T: Marker>(
     mut spawner_q: Query<&mut ArrowSpawner<T>>,
-    input: Res<ButtonInput<KeyCode>>,
+    settings: Res<UserSettings>,
+    keys: Res<ButtonInput<KeyCode>>,
 ) {
+    let keymap = &settings.keybindings.recording_keymap;
+    
+    spawner_q
+        .iter_mut()
+        .for_each(|mut spawner| {
+            
+            if keys.just_pressed(keymap.forward) {
+                spawner.move_forward();
+            }
+            else if keys.just_pressed(keymap.backward) {
+                spawner.move_backward();
+            }
+
+
+        });
 
 }
 
@@ -59,6 +78,7 @@ impl Plugin for RecordingControlsPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(Update, handle_pause_actions::<PlayerMarker>)
+            .add_systems(Update, handle_scroll_actions::<PlayerMarker>)
         ;
     }
 }

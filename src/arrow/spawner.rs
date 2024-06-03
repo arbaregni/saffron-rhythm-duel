@@ -147,6 +147,13 @@ impl <T: Marker> ArrowSpawner<T> {
         }
     }
 
+    pub fn move_forward(&mut self) {
+        self.beat_count += 1;
+    }
+    pub fn move_backward(&mut self) {
+        self.beat_count -= 1;
+    }
+
 }
 
 
