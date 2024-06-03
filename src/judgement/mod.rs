@@ -47,7 +47,7 @@ fn judge_lane_hits(
     mut input_events: EventReader<LaneHit>,
 
     // needed to do the judgment
-    mut arrow_q: Query<(&mut Arrow, &mut Sprite)>,
+    mut arrow_q: Query<&mut Arrow>,
     judgement: Res<JudgementSettings>,
 
     // outputs one of the judgement events
@@ -66,34 +66,34 @@ fn judge_lane_hits(
             .iter_mut()
             
             // only consider arrows that have not been hit yet
-            .filter(|(arrow, _)| arrow.status().is_pending())
+            .filter(|arrow| arrow.status().is_pending())
             
             // only consider arrows in the lane that was hit
-            .filter(|(arrow, _)| arrow.lane() == lane_hit.lane())
+            .filter(|arrow| arrow.lane() == lane_hit.lane())
 
             // Get the absolute arrival time of each
-            .map(|(arrow, sprite)| {
+            .map(|arrow| {
                 let delta_time = arrow.arrival_beat() - lane_hit.beat();
                 let time_diff = delta_time.abs();
-                (arrow, sprite, time_diff)
+                (arrow, time_diff)
             })
 
             // Discard the NaNs, everything else can be compared
-            .filter_map(|(arrow, sprite, time_diff)| match NotNan::new(time_diff) {
-                Ok(time_diff) => Some((arrow, sprite, time_diff)),
+            .filter_map(|(arrow, time_diff)| match NotNan::new(time_diff) {
+                Ok(time_diff) => Some((arrow, time_diff)),
                 Err(e) => {
                     log::error!("Found NaN while calculating the time to arrival of {arrow:?} - {e:?}");
                     None // discard this arrow
                 }
             })
             // Find the minimum
-            .min_by_key(|(_, _, diff)| *diff);
+            .min_by_key(|(_, diff)| *diff);
 
 
         // ---------------------------------------------- 
         // If we did not find anything, then that means it was a missfire.
         // so we can send that off now and skip to the next lane hit
-        let Some((mut arrow, mut sprite, _time_diff)) = search_result else {
+        let Some((mut arrow, _time_diff)) = search_result else {
             log::debug!("No arrow found, sending a missfire event");
             missfire_events.send(MissfireEvent {
                 lane_hit: lane_hit.clone()
@@ -118,7 +118,6 @@ fn judge_lane_hits(
 
                 log::debug!("marking arrow as completed");
                 arrow.mark_completed();
-                sprite.color = lane_hit.lane().colors().greyed;
                 log::debug!("sending correct hit event");
                 correct_arrow_events.send(CorrectHitEvent {
                     lane_hit: lane_hit.clone(),

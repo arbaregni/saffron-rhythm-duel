@@ -19,7 +19,13 @@ use anyhow::{
     Result,
     Context
 };
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    sprite::{
+        MaterialMesh2dBundle,
+        Mesh2dHandle
+    }
+};
 
 use crate::team_markers::{
     PlayerMarker,
@@ -154,6 +160,8 @@ fn process_load_chart_events<T: Marker>(
 
     
 fn spawn_arrows<T: Marker>(
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
     time: Res<Time>,
     mut spawner: Query<(&mut ArrowSpawner<T>, &mut ArrowBuf), With<T>>,
@@ -181,30 +189,30 @@ fn spawn_arrows<T: Marker>(
         let z = Layer::Arrows.z();
         let pos = Vec3::new(x, y, z);
 
+       let transform = Transform {
+            translation: pos,
+            ..default()
+        };
+
         let width = panel.lane_bounds(arrow.lane).width();
         let height = Arrow::height();
-        let scale = Vec3::new(width, height, 1.0);
 
+        let rect = Mesh2dHandle(
+            meshes.add(Rectangle::new(width, height))
+        );
         let color = arrow.lane.colors().base;
+        let material = materials.add(color);
 
-        let transform = Transform {
-            translation: pos,
-            scale,
-            ..default()
-        };
-        let sprite = Sprite {
-            color,
-            ..default()
-        };
-        let sprite_bundle = SpriteBundle {
+        let bundle = MaterialMesh2dBundle {
+            mesh: rect,
+            material,
             transform,
-            sprite,
             ..default()
         };
 
         log::debug!("spawning arrow: {arrow:#?}");
         commands
-            .spawn((arrow, sprite_bundle, T::marker()));
+            .spawn((arrow, bundle, T::marker()));
 
     }
 
