@@ -156,29 +156,27 @@ impl DroppedNoteEvent {
 }
 
 /// Despawns old arrows if they fall out of the screen and emits `DroppedNoteEvent`
-fn despawn_arrows(
-    mut commands: Commands,
+fn emit_dropped_notes(
     mut events: EventWriter<DroppedNoteEvent>,
     panel: Query<&SongPanel, With<PlayerMarker>>,
-    query: Query<(Entity, &Transform, &Arrow), With<PlayerMarker>>
+    mut query: Query<(&Transform, &mut Arrow), With<PlayerMarker>>
 ) {
     let panel = panel.single();
 
-    for (entity, transform, arrow) in query.iter() {
-        let y = transform.translation.y;
-        if y < panel.arrow_drop_line_y() {
-            // it's low enough to despawn
-            commands.entity(entity).despawn();
-
-            if arrow.status().is_pending() {
-                log::debug!("emitting DroppedNoteEvent");
-                events.send(DroppedNoteEvent {
-                    arrow: arrow.clone(),
-                });
-            }
-
-        }
-    }
+    query
+        .iter_mut()
+        .filter(|(transform, _)| {
+            let y = transform.translation.y;
+            y < panel.arrow_drop_line_y()
+        })
+        .filter(|(_, arrow)| arrow.status().is_pending())
+        .for_each(|(_, mut arrow)| {
+            log::debug!("emitting DroppedNoteEvent");
+            events.send(DroppedNoteEvent {
+                arrow: arrow.clone(),
+            });
+            arrow.mark_completed();
+        });
 
 }
 
@@ -201,7 +199,7 @@ impl Plugin for JudgementPlugin {
             
             // Add the systems
             .add_systems(Update, judge_lane_hits)
-            .add_systems(Update, despawn_arrows)
+            .add_systems(Update, emit_dropped_notes)
             
             // Add the plugins
             .add_plugins(metrics::MetricsPlugin)

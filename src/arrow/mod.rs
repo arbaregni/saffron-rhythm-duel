@@ -169,7 +169,7 @@ fn spawn_arrows<T: Marker>(
 
     spawner.tick(&time);
 
-    spawner.create_arrows_in(&mut arrow_buf, time.as_ref());
+    spawner.create_arrows_in(&mut arrow_buf, &time);
 
     // =======================================
     //   spawn the arrows
@@ -227,6 +227,7 @@ fn position_arrows<T: Marker>(
     }
 }
 
+
 fn check_for_song_end<T: Marker>(
     _commands: Commands,
     time: Res<Time>,
@@ -253,6 +254,7 @@ fn check_for_song_end<T: Marker>(
 fn cleanup_spawner<T: Marker>(
     mut commands: Commands,
     spawner: Query<(Entity, &ArrowSpawner<T>)>,
+    arrows: Query<(Entity, &Arrow), With<T>>,
     mut ending_ev: EventWriter<SongFinishedEvent<T>>,
 ) {
     spawner
@@ -261,6 +263,14 @@ fn cleanup_spawner<T: Marker>(
             commands.entity(e)
                     .despawn_recursive()
         });
+
+    arrows
+        .iter()
+        .for_each(|(e, _)| {
+            commands.entity(e)
+                    .despawn()
+        });
+
 
     // tell the outside world that we finished
     log::info!("emitting song finished event...");

@@ -38,8 +38,11 @@ impl SongPanel {
     }
     pub fn arrow_drop_line_y(&self) -> f32 {
         // once the arrow is no longer visible, it's too late for the player to click it
+        // TODO: fix this logic:
+        //       namely, the player might be late and it should be based on closest arrow / beat
         self.bounds.bottom() - self.target_height() * 1.5
     }
+        
     pub fn lane_letter_height(&self) -> f32 {
         // bit more than height of the target
         self.target_height() * 2.5

@@ -19,10 +19,16 @@ use super::{
 pub struct ArrowSpawner<T: Marker> {
     /// How we will spawn the arrows
     chart: Chart,
+
     /// The timer marking off the beat
-    beat_timer: Timer,
-    /// The number of beat tickets. Indexes into the list of beats in a chart.
+    spawn_timer: Timer,
+
+    /// the last beat that we actually spawned
+    last_spawned_beat: Option<u32>,
+
+    /// the current desired beat to spawn
     beat_count: u32,
+
     /// The local timestamp when the song started
     song_start: f32,
     /// True if we are paused and not making new notes
@@ -39,14 +45,15 @@ impl <T: Marker> ArrowSpawner<T> {
             .with_context(|| format!("loading chart with name {chart_name}"))?;
 
         let duration = Duration::from_secs_f32(chart.beat_duration_secs());
-        let beat_timer = Timer::new(duration, TimerMode::Repeating);
+        let spawn_timer = Timer::new(duration, TimerMode::Repeating);
 
         let now = time.elapsed().as_secs_f32();
 
         Ok(Self {
             chart,
-            beat_timer,
+            spawn_timer,
             song_start: now,
+            last_spawned_beat: None,
             beat_count: 0,
             is_paused: false,
             team: T::marker(),
@@ -65,9 +72,9 @@ impl <T: Marker> ArrowSpawner<T> {
             return None;
         }
 
-        self.beat_timer.tick(time.delta());
+        self.spawn_timer.tick(time.delta());
 
-        if !self.beat_timer.just_finished() {
+        if !self.spawn_timer.just_finished() {
             // not time for another beat just yet
             return None;
         }
@@ -90,7 +97,7 @@ impl <T: Marker> ArrowSpawner<T> {
     }
     /// Returns the beats that we have seen, including fractional beats
     pub fn beat_fraction(&self) -> f32 {
-        let frac = self.beat_timer.fraction();
+        let frac = self.spawn_timer.fraction();
         self.beat_count() as f32 + frac
     }
 
@@ -100,6 +107,9 @@ impl <T: Marker> ArrowSpawner<T> {
 
     pub fn toggle_is_paused(&mut self) {
         self.is_paused = !self.is_paused;
+    }
+    pub fn is_paused(&self) -> bool {
+        self.is_paused
     }
 
     /// Populates `buf` with a list of chart names that the user can select.
@@ -124,26 +134,33 @@ impl <T: Marker> ArrowSpawner<T> {
         Ok(())
     }
 
+    fn next_beat_to_spawn(&self) -> Option<u32> {
+        match self.last_spawned_beat {
+            None => Some(0),
+            Some(b) => {
+                if b < self.beat_count {
+                    Some(b + 1)
+                } else {
+                    None
+                }
+            }
+        }
+    }
     /// Creates the arrows ands appends them to the given buffer
-    pub fn create_arrows_in(&self, buf: &mut ArrowBuf, time: &Time) {
-        if self.is_paused {
-            return;
-        }
-
+    pub fn create_arrows_in(&mut self, buf: &mut ArrowBuf, time: &Time) {
         let now = time.elapsed().as_secs_f32();
-        let chart = self.chart();
 
-        if !self.beat_timer.just_finished() {
-            return;
-        }
-
-        let beat = self.beat_count;
-
-        for note in chart.get(beat) {
-            let lane = note.lane();
-            let arrival = beat as f32 + self.chart().lead_time_beats();
-            let arrow = Arrow::new(lane, now, beat, arrival);
-            buf.push(arrow);
+        while let Some(beat) = self.next_beat_to_spawn() {
+            self.chart
+                .get(beat)
+                .into_iter()
+                .for_each(|note| {
+                    let lane = note.lane();
+                    let arrival = beat as f32 + self.chart().lead_time_beats();
+                    let arrow = Arrow::new(lane, now, beat, arrival);
+                    buf.push(arrow);
+                });
+            self.last_spawned_beat = Some(beat); 
         }
     }
 

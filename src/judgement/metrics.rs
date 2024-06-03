@@ -179,8 +179,7 @@ impl Plugin for MetricsPlugin {
         app
             .insert_resource(SongMetrics::new())
             .add_systems(Update, update_metrics
-                                     .after(super::judge_lane_hits)
-                                     .after(super::despawn_arrows)
+                                 .after(super::judge_lane_hits)
              )
             // reset the metrics when we start a song
             .add_systems(OnEnter(SongState::Playing(PlayerMarker{})), reset_metrics) 
