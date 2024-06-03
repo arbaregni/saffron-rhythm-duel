@@ -7,7 +7,7 @@ use crate::team_markers::{
     PlayerMarker,
     EnemyMarker
 };
-use crate::arrow::{
+use crate::song::{
     LoadChartRequest
 };
 

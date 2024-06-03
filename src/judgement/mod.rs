@@ -8,9 +8,8 @@ use crate::team_markers::{
     EnemyMarker,
 };
 
-use crate::arrow::{
+use crate::song::{
     Arrow,
-    ArrowStatus,
 };
 use crate::layout::{
     SongPanel,

@@ -4,12 +4,12 @@ use crate::lane::Lane;
 
 #[derive(Component, Debug, Clone)]
 pub struct Arrow {
-    pub (in crate::arrow) lane: Lane,
-    pub (in crate::arrow) status: ArrowStatus,
+    pub (in crate::song) lane: Lane,
+    pub (in crate::song) status: ArrowStatus,
     /// When the arrow is created and first visibile to player
-    pub (in crate::arrow) creation_time: f32,
+    pub (in crate::song) creation_time: f32,
     /// Which beat number this was created for
-    pub (in crate::arrow) beat_number: u32,
+    pub (in crate::song) beat_number: u32,
     /// Which beat this is supposed to arrive at
     pub arrival_beat: f32,
 }

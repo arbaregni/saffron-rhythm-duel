@@ -31,7 +31,7 @@ impl SongPanel {
     }
 
     pub fn target_height(&self) -> f32 {
-        crate::arrow::Arrow::height()
+        crate::song::Arrow::height()
     }
     pub fn target_line_y(&self) -> f32 {
         self.bounds.bottom() + 0.5 * self.target_height()

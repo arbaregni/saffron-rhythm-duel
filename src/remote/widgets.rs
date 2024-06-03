@@ -3,7 +3,7 @@ use bevy::text::{
     Text2dBounds
 };
 
-use crate::arrow::{
+use crate::song::{
     SongState,
     LoadChartRequest, 
 };

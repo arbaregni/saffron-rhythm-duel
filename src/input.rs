@@ -7,7 +7,7 @@ use bevy::{
     prelude::*,
 };
 
-use crate::arrow::{
+use crate::song::{
     ArrowSpawner
 };
 use crate::user_settings::{

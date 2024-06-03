@@ -3,7 +3,7 @@
 mod keycode_serde;
 mod user_settings;
 mod logging;
-mod arrow;
+mod song;
 mod lane;
 mod judgement;
 mod layout;
@@ -137,7 +137,7 @@ fn main() -> Result<()> {
         )
         // Load custom plugins
         .add_plugins((
-            arrow::ArrowsPlugin,
+            song::ArrowsPlugin,
             judgement::JudgementPlugin,
             layout::UiPlugin,
             input::InputPlugin,

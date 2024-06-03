@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::arrow::{
+use crate::song::{
     ArrowSpawner
 };
 use crate::team_markers::{
