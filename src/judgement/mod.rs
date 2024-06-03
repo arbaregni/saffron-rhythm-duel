@@ -66,10 +66,6 @@ fn judge_lane_hits(
         let search_result = arrow_q
             .iter_mut()
             
-            // only consider arrows that have not been hit yet. honestly don't know if this is even
-            // the right call
-            .filter(|arrow| !matches!(arrow.status(), ArrowStatus::Completed))
-            
             // only consider arrows in the lane that was hit
             .filter(|arrow| arrow.lane() == lane_hit.lane())
 
