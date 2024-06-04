@@ -122,7 +122,7 @@ impl Comms {
 
         let Some(status_rx) = self.status_rx.as_mut() else {
             // nothing to do
-            return UpdateNetStatusOutput::Unchanged(&self.net_status)
+            return UpdateNetStatusOutput::Unchanged
         };
 
         let status = match status_rx.try_recv() {
@@ -130,17 +130,17 @@ impl Comms {
             Err(TryRecvError::Disconnected) => {
                 log::error!("status_rx disconnected");
                 self.status_rx = None;
-                return UpdateNetStatusOutput::Unchanged(&self.net_status)
+                return UpdateNetStatusOutput::Unchanged
             }
             _ => {
                 // nothing to do, but we didn't modify anything
-                return UpdateNetStatusOutput::Unchanged(&self.net_status)
+                return UpdateNetStatusOutput::Unchanged
             }
         };
 
         self.net_status = status;
 
-        UpdateNetStatusOutput::Changed(&self.net_status)
+        UpdateNetStatusOutput::Changed
     }
 
     /// Return the remote message, if there is one
@@ -185,16 +185,16 @@ impl Comms {
 }
 
 #[derive(Debug,Copy,Clone)]
-pub enum UpdateNetStatusOutput<'a> {
-    Changed(&'a NetStatus),
-    Unchanged(&'a NetStatus),
+pub enum UpdateNetStatusOutput {
+    Changed,
+    Unchanged,
 }
-impl <'a> UpdateNetStatusOutput<'a> {
+impl UpdateNetStatusOutput {
     pub fn is_changed(self) -> bool {
         use UpdateNetStatusOutput::*;
         match self {
-            Changed(_) => true,
-            Unchanged(_) => false
+            Changed => true,
+            Unchanged => false
         }
     }
 }
