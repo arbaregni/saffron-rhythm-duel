@@ -35,11 +35,8 @@ impl Arrow {
     pub fn mark_completed(&mut self) {
         self.status = ArrowStatus::Completed;
     }
-    pub fn marked_dropped(&mut self) {
+    pub fn mark_dropped(&mut self) {
         self.status = ArrowStatus::Dropped;
-    }
-    pub fn creation_time(&self) -> f32 {
-        self.creation_time
     }
     pub fn beat_number(&self) -> u32 {
         self.beat_number

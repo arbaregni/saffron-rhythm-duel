@@ -165,7 +165,7 @@ fn emit_dropped_notes(
             events.send(DroppedNoteEvent {
                 arrow: arrow.clone(),
             });
-            arrow.mark_completed();
+            arrow.mark_dropped();
         });
 
 }
