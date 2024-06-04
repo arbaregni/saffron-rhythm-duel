@@ -184,7 +184,7 @@ fn spawn_arrows<T: Marker>(
 
     spawner.tick(&time);
 
-    spawner.create_arrows_in(&mut arrow_buf, &time);
+    spawner.create_arrows_in(&mut arrow_buf);
 
     // =======================================
     //   spawn the arrows
@@ -227,8 +227,6 @@ fn spawn_arrows<T: Marker>(
         if cli.show_beat_numbers {
 
             let text_content = format!("{}", arrow.beat_number());
-
-            log::info!("spawning with text content: {}", text_content);
 
             let font = asset_server.load(crate::BASE_FONT_NAME);
             let font_size = 20.0;

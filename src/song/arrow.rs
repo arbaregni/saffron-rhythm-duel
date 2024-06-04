@@ -6,19 +6,16 @@ use crate::lane::Lane;
 pub struct Arrow {
     pub (in crate::song) lane: Lane,
     pub (in crate::song) status: ArrowStatus,
-    /// When the arrow is created and first visibile to player
-    pub (in crate::song) creation_time: f32,
     /// Which beat number this was created for
     pub (in crate::song) beat_number: u32,
     /// Which beat this is supposed to arrive at
     pub arrival_beat: f32,
 }
 impl Arrow {
-    pub fn new(lane: Lane, creation_time: f32, beat_number: u32, arrival_beat: f32) -> Arrow {
+    pub fn new(lane: Lane, beat_number: u32, arrival_beat: f32) -> Arrow {
         Arrow {
             lane,
             status: ArrowStatus::Pending,
-            creation_time,
             beat_number,
             arrival_beat,
         }

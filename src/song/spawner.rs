@@ -121,8 +121,7 @@ impl <T: Marker> ArrowSpawner<T> {
         }
     }
     /// Creates the arrows ands appends them to the given buffer
-    pub fn create_arrows_in(&mut self, buf: &mut ArrowBuf, time: &Time) {
-        let now = time.elapsed().as_secs_f32();
+    pub fn create_arrows_in(&mut self, buf: &mut ArrowBuf) {
 
         while let Some(beat) = self.next_beat_to_spawn() {
             self.chart
@@ -131,7 +130,7 @@ impl <T: Marker> ArrowSpawner<T> {
                 .for_each(|note| {
                     let lane = note.lane();
                     let arrival = beat as f32 + self.chart().lead_time_beats();
-                    let arrow = Arrow::new(lane, now, beat, arrival);
+                    let arrow = Arrow::new(lane, beat, arrival);
                     buf.push(arrow);
                 });
             self.last_spawned_beat = Some(beat); 
