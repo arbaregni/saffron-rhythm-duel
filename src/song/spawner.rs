@@ -60,31 +60,26 @@ impl <T: Marker> ArrowSpawner<T> {
         })
     }
 
-    pub fn tick(&mut self, time: &Time) -> Option<BeatTick> {
+    pub fn tick(&mut self, time: &Time) {
         let now = time.elapsed().as_secs_f32();
 
         if self.is_paused {
-            return None;
+            return
         }
 
         if now < self.song_start() {
             // not time to start the song yet
-            return None;
+            return
         }
 
         self.spawn_timer.tick(time.delta());
 
         if !self.spawn_timer.just_finished() {
             // not time for another beat just yet
-            return None;
+            return
         }
 
-        let beat = self.beat_count();
         self.beat_count += 1;
-
-        Some(BeatTick {
-            beat
-        })
 
     }
 
@@ -188,14 +183,3 @@ impl ArrowBuf {
     }
 }
 
-#[derive(Debug)]
-pub struct BeatTick {
-    /// The count of the beat we are on.
-    beat: u32,
-}
-
-impl BeatTick {
-    pub fn beat(&self) -> u32 {
-        self.beat
-    }
-}
