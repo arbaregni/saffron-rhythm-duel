@@ -21,10 +21,7 @@ use super::{
 };
 
 #[derive(Component)]
-struct StatusText {
-    last_updated: f32,
-    status: NetStatus,
-}
+struct StatusText { }
 
 #[derive(Debug,Clone)]
 pub enum NetStatus {
@@ -69,8 +66,6 @@ pub fn setup_networking_status_text (
     };
 
     let status_text = StatusText {
-        last_updated: 0.0,
-        status: NetStatus::Disconnected,
     };
 
     commands.spawn((
