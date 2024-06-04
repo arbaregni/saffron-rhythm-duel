@@ -88,7 +88,6 @@ enum ChartSelectorState {
 #[derive(Component)]
 struct SelectChartButton {
     index: usize,
-    chart_name: String,
 }
 
 fn enable_chart_selector_on_song_end<T: Marker>(
@@ -142,7 +141,6 @@ fn setup_chart_selector<T: Marker>(
         .map(|(index, chart_name)| {
             let select = SelectChartButton {
                 index,
-                chart_name: chart_name.to_string(),
             };
             let text = TextBundle::from_section(
                 chart_name,
