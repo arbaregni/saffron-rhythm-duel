@@ -57,7 +57,6 @@ const LANE_BOX_INITIAL_ALPHA: f32 = 0.4;
 #[component(storage = "SparseSet")]
 struct LaneBox {
     created_at: f32,
-    duration: f32,
 }
 pub struct LaneBoxCreationArgs<'a, 'w, 's, T> {
     commands: &'a mut Commands<'w, 's>,
@@ -92,7 +91,6 @@ impl LaneBox {
 
         let lane_box = LaneBox {
             created_at: now,
-            duration: LANE_BOX_MAX_TIME,
         };
 
         let mesh_bundle = MaterialMesh2dBundle {
