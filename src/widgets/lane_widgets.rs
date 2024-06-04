@@ -23,7 +23,7 @@ use crate::user_settings::{
 
 #[derive(Component)]
 pub struct LaneTarget {
-    pub lane: Lane,
+    lane: Lane,
 }
 impl LaneTarget {
     pub fn lane(&self) -> Lane {
@@ -31,13 +31,18 @@ impl LaneTarget {
     }
 }
 
+const DEFAULT_ALPHA_FOR_LANE_LETTER: f32 = 0.3;
+
 #[derive(Component)]
 pub struct LaneLetter {
-    pub lane: Lane
+    lane: Lane
 }
 impl LaneLetter {
     pub fn alpha() -> f32 {
-        0.3 // default alpha for the lane letter
+        DEFAULT_ALPHA_FOR_LANE_LETTER
+    }
+    pub fn lane(&self) -> Lane {
+        self.lane
     }
 }
 
@@ -176,7 +181,7 @@ pub fn darken_on_press(
         // get the lane targets
         lane_targets
             .iter()
-            .filter(|(_, lane_target)| lane_target.lane == event_lane)
+            .filter(|(_, lane_target)| lane_target.lane() == event_lane)
             .for_each(|(entity, _)| {
                 commands.entity(entity)
                       .insert(DarkeningEffect {
@@ -189,7 +194,7 @@ pub fn darken_on_press(
         // get the lane letters
         lane_letters
             .iter()
-            .filter(|(_, lane_letter)| lane_letter.lane == event_lane)
+            .filter(|(_, lane_letter)| lane_letter.lane() == event_lane)
             .for_each(|(entity, _)| {
                 commands.entity(entity)
                         .insert(DarkeningEffect {
@@ -263,7 +268,7 @@ pub fn jostle_on_dropped_note(
 
         query
             .iter()
-            .filter(|(_, lane_letter, _)| lane_letter.lane == event_lane)
+            .filter(|(_, lane_letter, _)| lane_letter.lane() == event_lane)
             .for_each(|(id, _, transform)| {
                 commands.entity(id)
                         .insert(JostlingEffect {

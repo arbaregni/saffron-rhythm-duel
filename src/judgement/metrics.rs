@@ -59,10 +59,12 @@ impl SongMetrics {
         }
     }
     /// Total number of arrows that have passed the target line.
+    #[allow(dead_code)]
     pub fn total_arrows(&self) -> u32 {
         self.total_arrows
     }
     /// Number of arrows that the user has correctly intercepted in time.
+    #[allow(dead_code)]
     pub fn success_arrows(&self) -> u32 {
         self.correct_hits
     }

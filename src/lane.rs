@@ -3,19 +3,9 @@ use serde::{
     Deserialize,
 };
 
-use bevy::{
-    prelude::*,
-};
+use bevy::prelude::*;
 
-use crate::layout::BBox;
-
-fn world() -> BBox {
-    crate::world()
-}
-
-
-#[derive(Debug,Copy,Clone,PartialEq,Eq)]
-#[derive(Serialize,Deserialize)]
+#[derive(Debug,Copy,Clone,PartialEq,Eq,Serialize,Deserialize)]
 #[repr(u8)]
 pub enum Lane {
     L1 = 0,
@@ -27,17 +17,6 @@ impl Lane {
     pub const fn all() -> &'static [Lane] {
         use Lane::*;
         &[L1, L2, R1, R2]
-    }
-    pub const fn lane_count() -> usize {
-        Lane::all().len()
-    }
-    pub fn random() -> Lane {
-        use rand::seq::SliceRandom;
-        let mut rng = rand::thread_rng();
-        Lane::all()
-            .choose(&mut rng)
-            .copied()
-            .expect("at  least one lane")
     }
     pub fn colors(self) -> ColorConfig {
         use Lane::*;
@@ -68,24 +47,6 @@ impl Lane {
             },
         }
     }
-
-    pub fn keycode(self) -> KeyCode {
-        use Lane::*;
-        /*
-        match self {
-            L1 => KeyCode::KeyD,
-            L2 => KeyCode::KeyF,
-            R1 => KeyCode::KeyJ,
-            R2 => KeyCode::KeyK,
-        }
-        */
-        match self {
-            L1 => KeyCode::KeyA,
-            L2 => KeyCode::KeyS,
-            R1 => KeyCode::KeyD,
-            R2 => KeyCode::KeyF,
-        }
-    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -93,6 +54,7 @@ pub struct ColorConfig {
     pub light: Color,
     pub base: Color,
     pub heavy: Color,
+    #[allow(dead_code)]
     pub greyed: Color,
 }
 
@@ -101,6 +63,7 @@ pub struct LaneMap<T> {
     items: [T; 4]
 }
 impl <T: Default> LaneMap<T> {
+    #[allow(dead_code)]
     pub fn new() -> LaneMap<T> {
         LaneMap {
             items: [T::default(), T::default(), T::default(), T::default()]

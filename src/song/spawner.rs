@@ -34,7 +34,7 @@ pub struct ArrowSpawner<T: Marker> {
     /// True if we are paused and not making new notes
     is_paused: bool,
     /// The team we are spawning for.
-    team: T,
+    _team: T,
 }
 impl <T: Marker> ArrowSpawner<T> {
     /// Creates an arrow spawner
@@ -56,7 +56,7 @@ impl <T: Marker> ArrowSpawner<T> {
             last_spawned_beat: None,
             beat_count: 0,
             is_paused: false,
-            team: T::marker(),
+            _team: T::marker(),
         })
     }
 

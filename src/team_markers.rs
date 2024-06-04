@@ -70,18 +70,3 @@ impl Marker for EnemyMarker {
         Team::Enemy
     }
 }
-
-
-pub trait EntityCommandsExt {
-    /// Assigns the current entity the marker component corresponding to the specified `team`.
-    fn assign_team_marker(&mut self, team: Team) -> &mut Self;
-}
-impl EntityCommandsExt for bevy::ecs::system::EntityCommands<'_> {
-    fn assign_team_marker(&mut self, team: Team) -> &mut Self {
-        use Team::*;
-        match team {
-            Player => self.insert(PlayerMarker),
-            Enemy  => self.insert(EnemyMarker)
-        }
-    }
-}

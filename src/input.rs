@@ -1,21 +1,13 @@
+use bevy::prelude::*;
 use serde::{
     Deserialize,
     Serialize
 };
 use crate::keycode_serde;
-use bevy::{
-    prelude::*,
-};
 
-use crate::song::{
-    ArrowSpawner
-};
-use crate::user_settings::{
-    UserSettings,
-};
-use crate::lane::{
-    Lane,
-};
+use crate::song::ArrowSpawner;
+use crate::user_settings::UserSettings;
+use crate::lane::Lane;
 use crate::team_markers::{
     Marker,
     PlayerMarker,
@@ -33,7 +25,7 @@ pub struct RawLaneHit<T: Marker> {
     /// The beat when the key was pressed
     beat: f32,
     /// The team (local or remote) that made the hit
-    team: T,
+    _team: T,
 }
 impl <T: Marker> RawLaneHit<T> {
     pub fn from(lane: Lane, beat: f32, time_of_hit: f32) -> RawLaneHit<T> {
@@ -41,17 +33,11 @@ impl <T: Marker> RawLaneHit<T> {
             lane,
             time_of_hit,
             beat,
-            team: T::marker()
+            _team: T::marker()
         }
     }
     pub fn lane(&self) -> Lane {
         self.lane
-    }
-    pub fn time_of_hit(&self) -> f32 {
-        self.time_of_hit
-    }
-    pub fn team(&self) -> T {
-        self.team.clone()
     }
     pub fn beat(&self) -> f32 {
         self.beat
@@ -118,7 +104,7 @@ fn listen_for_input(
             lane,
             beat: spawner.beat_fraction(),
             time_of_hit: now,
-            team: PlayerMarker{}
+            _team: PlayerMarker{}
         })
         .for_each(|ev| {
             log::debug!("Sending lane hit event");

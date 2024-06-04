@@ -73,27 +73,15 @@ impl Chart {
     pub fn beat_duration_secs(&self) -> f32 {
         self.beat_duration_secs
     }
-    /// Returns number of seconds that arrows are visible.
-    pub fn lead_time_secs(&self) -> f32 {
-        self.lead_time_beats * self.beat_duration_secs()
-    }
     /// Returns for how many beats arrows are visible
     pub fn lead_time_beats(&self) -> f32 {
         self.lead_time_beats
-    }
-    /// Number of beats that are in the song
-    pub fn num_beats(&self) -> u32 {
-        self.beats.len() as u32
     }
     /// last beat that we see passing through target line
     pub fn last_beat(&self) -> f32 {
         let beats = self.beats.len() as f32;
         let wait_period = self.song_end_beats.unwrap_or(0.0);
         beats + wait_period
-    }
-    pub fn total_duration(&self) -> f32 {
-        self.beat_duration_secs() * (self.num_beats() as f32)
-            + self.lead_time_secs()
     }
 }
 

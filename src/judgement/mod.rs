@@ -12,8 +12,7 @@ use crate::song::{
     Arrow,
 };
 use crate::layout::{
-    SongPanel,
-    BBox,
+    SongPanel
 };
 use crate::input::{
     LaneHit
@@ -31,11 +30,6 @@ pub use grading::{
     RawMissfireEvent,
     JudgementSettings
 };
-
-fn world() -> BBox {
-    crate::world()
-}
-
 
 /// Listens for Input actions where the user (correctly or incorrectly) attempts to complete a note
 /// Consumes LaneHit events and creates

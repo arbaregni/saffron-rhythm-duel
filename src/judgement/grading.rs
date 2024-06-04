@@ -42,6 +42,7 @@ impl <T: Marker> RawCorrectHitEvent<T> {
     }
 }
 pub type CorrectHitEvent = RawCorrectHitEvent<PlayerMarker>;
+#[allow(dead_code)]
 pub type RemoteCorrectHitEvent = RawCorrectHitEvent<EnemyMarker>;
 
 /// Represents when the user hits the lane, and there is a nearby note,
@@ -55,6 +56,7 @@ pub struct RawIncorrectHitEvent<T: Marker> {
     pub grade: FailingGrade,
 }
 pub type IncorrectHitEvent = RawIncorrectHitEvent<PlayerMarker>;
+#[allow(dead_code)]
 pub type RemoteIncorrectHitEvent = RawIncorrectHitEvent<EnemyMarker>;
 
 /// Event representing when the user attempts to complete a note, but are too early or late to be
@@ -66,6 +68,7 @@ pub struct RawMissfireEvent<T: Marker> {
     pub lane_hit: RawLaneHit<T>,
 }
 pub type MissfireEvent = RawMissfireEvent<PlayerMarker>;
+#[allow(dead_code)]
 pub type RemoteMissfireEvent = RawMissfireEvent<EnemyMarker>;
 
 #[derive(Debug,Copy,Clone,Deserialize,Serialize)]

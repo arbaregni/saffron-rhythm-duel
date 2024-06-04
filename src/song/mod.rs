@@ -51,7 +51,9 @@ const BEAT_NUMBER_TEXT_COLOR: Color = Color::rgb(0.1, 0.1, 0.1);
 pub struct LoadChartRequest<T: Marker> {
     chart_name: String,
     // Set to zero to start at the beginning
+    #[allow(dead_code)]
     beat_count: u32,
+    #[allow(dead_code)]
     team: T,
 }
 impl <T: Marker> LoadChartRequest<T> {
@@ -74,17 +76,17 @@ impl <T: Marker> LoadChartRequest<T> {
 pub struct LoadChartResponse<T: Marker> {
     /// Either OK and the chart was loaded, or Err with a message to the user on why.
     pub response: Result<()>,
-    team: T
+    _team: T
 }
 
 #[derive(Event)]
 #[derive(Debug, Clone)]
 pub struct SongFinishedEvent<T: Marker> {
-    team: T,
+    _team: T,
 }
 impl <T: Marker> SongFinishedEvent<T> {
     pub fn create(team: T) -> Self {
-        Self { team }
+        Self { _team: team }
     }
 }
 
@@ -156,7 +158,7 @@ fn process_load_chart_events<T: Marker>(
             let resp = load_chart_impl(chart_name);
             load_chart_resp.send(LoadChartResponse {
                 response: resp,
-                team: T::marker()
+                _team: T::marker()
             });
         });
 }

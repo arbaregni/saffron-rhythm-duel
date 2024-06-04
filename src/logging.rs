@@ -143,7 +143,7 @@ fn log_folder_path(cli: &CliArgs) -> PathBuf {
         // and if that fails, then we just default to the current working directory
         .unwrap_or(Path::new(".").to_path_buf())
         // and then we join it with the settings file
-        .join("logs")
+        .join(LOG_FOLDER_NAME)
 }
 
 fn rolling_log_file(cli: &CliArgs) -> Result<(File, PathBuf)> {

@@ -131,7 +131,7 @@ fn setup_chart_selector<T: Marker>(
     };
     let button_bundle = ButtonBundle {
         style: button_style,
-        border_color: Color::BLACK.into(),
+        border_color: NORMAL_BORDER_COLOR.into(),
         background_color: NORMAL_FILL_COLOR.into(),
         ..default()
     };
