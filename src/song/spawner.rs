@@ -112,31 +112,6 @@ impl <T: Marker> ArrowSpawner<T> {
     pub fn toggle_is_paused(&mut self) {
         self.is_paused = !self.is_paused;
     }
-    pub fn is_paused(&self) -> bool {
-        self.is_paused
-    }
-
-    /// Populates `buf` with a list of chart names that the user can select.
-    /// Returns Ok or a user friendly error.
-    pub fn selectable_chart_names(buf: &mut Vec<String>) -> Result<(), String> {
-        use std::fs;
-        let parent_path = "assets/charts/";
-        
-        let paths = fs::read_dir(parent_path)
-            .map_err(|e| {
-                format!("Unable to read available chart names from `assets/charts/`: {e}")
-            })?;
-
-        buf.clear();
-        for path in paths {
-            let path = path
-                .map(|p| p.path().display().to_string())
-                .unwrap_or("<unable to read>".to_string());
-            buf.push(path);
-        }
-
-        Ok(())
-    }
 
     fn next_beat_to_spawn(&self) -> Option<u32> {
         match self.last_spawned_beat {
