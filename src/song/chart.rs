@@ -83,6 +83,14 @@ impl Chart {
         let wait_period = self.song_end_beats.unwrap_or(0.0);
         beats + wait_period
     }
+
+    /// Iterate over all beats in the chart
+    pub fn beats_iter(&self) -> impl Iterator<Item = &[Note]> + '_ {
+        log::info!("in beats_iter");
+        self.beats
+            .iter()
+            .map(|b| b.as_slice())
+    }
 }
 
 impl Note {

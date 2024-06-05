@@ -108,6 +108,30 @@ impl <T: Marker> ArrowSpawner<T> {
         self.is_paused = !self.is_paused;
     }
 
+    /// Iterate over the arrows needed to fulfill this song.
+    pub fn arrows_to_spawn(&self) -> impl Iterator<Item = Arrow> + '_ {
+        self.chart()
+            .beats_iter()
+            // enumerate it so we get the beat count information
+            .enumerate()
+            // take out all of the individual notes in a beat
+            .flat_map(|(beat_count, notes)| {
+                notes
+                    .iter()
+                    .map(move |note| (beat_count, note))
+            })
+            .map(|(beat_count, note)| {
+                let lane = note.lane();
+                let arrival = beat_count as f32 + self.chart().lead_time_beats();
+                Arrow::new(
+                    lane,
+                    beat_count as u32,
+                    arrival
+                )
+            })
+
+    }
+
     fn next_beat_to_spawn(&self) -> Option<u32> {
         match self.last_spawned_beat {
             None => Some(0),

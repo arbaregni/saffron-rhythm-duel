@@ -94,8 +94,10 @@ impl <T: Marker> SongFinishedEvent<T> {
 #[derive(Debug,Clone,Eq,PartialEq,Hash)]
 #[derive(States)]
 pub enum SongState<T: Marker> {
-    Playing(T),
-    NotPlaying
+    NotPlaying,
+    SettingUp,
+    Playing,
+    _Marker(T),
 }
 
 fn _get_audio_bundle<T: Marker>(
@@ -145,7 +147,7 @@ fn process_load_chart_events<T: Marker>(
         commands
             .spawn((spawner, arrow_buf, audio_bundle, T::marker()));
 
-        state.set(SongState::Playing(T::marker()));
+        state.set(SongState::SettingUp);
 
         Ok(())
     };
@@ -164,112 +166,119 @@ fn process_load_chart_events<T: Marker>(
 }
 
     
-fn spawn_arrows<T: Marker>(
+/// Spawns all the arrows of a given song
+fn setup_arrows<T: Marker>(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut commands: Commands,
-    time: Res<Time>,
     cli: Res<crate::CliArgs>,
     asset_server: Res<AssetServer>,
-    mut spawner: Query<(&mut ArrowSpawner<T>, &mut ArrowBuf), With<T>>,
+    mut spawner_q: Query<&mut ArrowSpawner<T>>,
     panel_query: Query<&SongPanel, With<T>>,
+    mut state: ResMut<NextState<SongState<T>>>,
 ) {
+    log::info!("in setup_arrows");
+
     let panel = panel_query.single();
 
-    // ========================================
-    //    create the arrows
-    // ========================================
-    //
-    let (mut spawner, mut arrow_buf) = spawner.single_mut();
+    let spawner = spawner_q.single_mut();
+    spawner
+        .as_ref()
+        .arrows_to_spawn()
+        .for_each(|arrow| {
+            let x = panel.lane_bounds(arrow.lane).center().x;
+            let y = panel.bounds().top();
+            let z = Layer::Arrows.z();
+            let pos = Vec3::new(x, y, z);
 
-    spawner.tick(&time);
-
-    spawner.create_arrows_in(&mut arrow_buf);
-
-    // =======================================
-    //   spawn the arrows
-    // =======================================
-    for arrow in arrow_buf.drain() {
-
-        let x = panel.lane_bounds(arrow.lane).center().x;
-        let y = panel.bounds().top();
-        let z = Layer::Arrows.z();
-        let pos = Vec3::new(x, y, z);
-
-       let transform = Transform {
-            translation: pos,
-            ..default()
-        };
-
-        let width = panel.lane_bounds(arrow.lane).width();
-        let height = Arrow::height();
-
-        let rect = Mesh2dHandle(
-            meshes.add(Rectangle::new(width, height))
-        );
-        let color = arrow.lane.colors().base;
-        let material = materials.add(color);
-
-        let bundle = MaterialMesh2dBundle {
-            mesh: rect,
-            material,
-            transform,
-            ..default()
-        };
-        log::debug!("spawning arrow: {arrow:#?}");
-        let mut entity = commands.spawn((
-            arrow.clone(),
-            bundle,
-            T::marker(),
-        ));
-
-        // helpful debugging
-        if cli.show_beat_numbers {
-
-            let text_content = format!("{}", arrow.beat_number());
-
-            let font = asset_server.load(crate::BASE_FONT_NAME);
-            let font_size = 20.0;
-            let color = BEAT_NUMBER_TEXT_COLOR;
-
-            let style = TextStyle {
-                font, font_size, color
-            };
-            let text = Text {
-                sections: vec![
-                    TextSection {
-                        value: text_content,
-                        style
-                    }
-                ],
-                ..default()
-            };
-            let pos = Vec3::new(
-                0.0,
-                0.0,
-                Layer::AboveArrows.z(),
-            );
-            let transform = Transform {
+           let transform = Transform {
                 translation: pos,
                 ..default()
             };
-            let text_bundle = Text2dBundle {
-                text,
+
+            let width = panel.lane_bounds(arrow.lane).width();
+            let height = Arrow::height();
+
+            let rect = Mesh2dHandle(
+                meshes.add(Rectangle::new(width, height))
+            );
+            let color = arrow.lane.colors().base;
+            let material = materials.add(color);
+
+            let bundle = MaterialMesh2dBundle {
+                mesh: rect,
+                material,
                 transform,
                 ..default()
             };
+            log::debug!("spawning arrow: {arrow:#?}");
+            let mut entity = commands.spawn((
+                arrow.clone(),
+                bundle,
+                T::marker(),
+            ));
 
-            // give the entity the text component
-            entity.with_children(|b| {
-                b.spawn((
-                    text_bundle,
-                ));
-            });
+            // helpful debugging
+            if cli.show_beat_numbers {
 
-        }
+                let text_content = format!("{}", arrow.beat_number());
 
-    }
+                let font = asset_server.load(crate::BASE_FONT_NAME);
+                let font_size = 20.0;
+                let color = BEAT_NUMBER_TEXT_COLOR;
 
+                let style = TextStyle {
+                    font, font_size, color
+                };
+                let text = Text {
+                    sections: vec![
+                        TextSection {
+                            value: text_content,
+                            style
+                        }
+                    ],
+                    ..default()
+                };
+                let pos = Vec3::new(
+                    0.0,
+                    0.0,
+                    Layer::AboveArrows.z(),
+                );
+                let transform = Transform {
+                    translation: pos,
+                    ..default()
+                };
+                let text_bundle = Text2dBundle {
+                    text,
+                    transform,
+                    ..default()
+                };
+
+                // give the entity the text component
+                entity.with_children(|b| {
+                    b.spawn((
+                        text_bundle,
+                    ));
+                });
+
+            }
+            
+            log::debug!("spawned: {:?}", entity.id());
+
+        });
+
+    log::info!("done setting up arrows");
+
+    state.set(SongState::Playing);
+
+}
+
+fn tick_spawner<T: Marker>(
+    mut spawner_q: Query<&mut ArrowSpawner<T>>,
+    time: Res<Time>
+) {
+    let mut spawner = spawner_q.single_mut();
+    spawner.tick(&time);
 }
 
 /// Put the arrows where they need to be
@@ -281,8 +290,21 @@ fn position_arrows<T: Marker>(
     for (mut transform, arrow) in arrows.iter_mut() {
 
         // calculate the fraction of the way through the lead space we are
-        let t = (spawner.beat_fraction() - arrow.beat_fraction()) / spawner.chart().lead_time_beats();
+        //
+        // original:
+        //       (spawner.beat_fraction() - arrow.beat_fraction()) / spawner.chart().lead_time_beats();
+        //       ((spawner.curr_beat + LT) - (arrow.arrival_beat() -  LT)) / LT
+        //       (2 * LT + spawner.curr_beat - arrow.arrival_beat) / LT
+        //       2 + (spawner.curr_beat - arrival_beat) / LT
+        let t = 2.0 + (spawner.curr_beat() - arrow.arrival_beat()) / spawner.chart().lead_time_beats();
 
+        let lead_time = spawner.chart().lead_time_beats();
+        let spawn_beat = arrow.arrival_beat() - lead_time;
+
+        let curr = spawner.curr_beat();
+        let t =  (curr - spawn_beat) / lead_time;
+
+        //
         // Set the y, where when t = 0% we are at the top and when t = 100% we are at the bottom
         transform.translation.y = world().bottom() * t + world().top() * (1.0 - t);
         //                      = (world().bottom() - world().top()) * t + world().top()
@@ -321,7 +343,7 @@ fn cleanup_spawner<T: Marker>(
         .iter()
         .for_each(|(e, _)| {
             commands.entity(e)
-                    .despawn()
+                    .despawn_recursive()
         });
 
 
@@ -341,6 +363,12 @@ impl Plugin for ArrowsPlugin {
 }
 impl ArrowsPlugin {
     fn build_for_team<'s, T: Marker>(&'s self, app: &mut App, team: T) -> &'s Self {
+        let not_playing = in_state(SongState::NotPlaying::<T>);
+        let playing = in_state(SongState::Playing::<T>);
+
+        let on_setup = OnEnter(SongState::SettingUp::<T>);
+        let on_stop_playing = OnEnter(SongState::NotPlaying::<T>);
+
         app
             .add_event::<LoadChartRequest<T>>()
             .add_event::<LoadChartResponse<T>>()
@@ -349,22 +377,21 @@ impl ArrowsPlugin {
 
             // Load the charts, if we are not playing a song already
             .add_systems(Update, 
-                    process_load_chart_events::<T>.run_if(in_state(
-                            SongState::NotPlaying::<T>
-                    ))
+                process_load_chart_events::<T>.run_if(not_playing)
             )
+
+            // when we start playing (ideally before) then we load all of the arrows
+            .add_systems(on_setup, setup_arrows::<T>)
 
             // while the song is playing, move the arrow and check for the end
             .add_systems(Update, (
-                    spawn_arrows::<T>,
+                    tick_spawner::<T>,
                     position_arrows::<T>,
                     check_for_song_end::<T>,
-                ).run_if(in_state(
-                    SongState::Playing(team.clone())
-                ))
+                ).run_if(playing)
             )
             // when we finish, despawn it
-            .add_systems(OnEnter(SongState::NotPlaying::<T>), cleanup_spawner::<T>)
+            .add_systems(on_stop_playing, cleanup_spawner::<T>)
         ;
         self
     }

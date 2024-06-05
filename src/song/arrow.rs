@@ -35,10 +35,11 @@ impl Arrow {
     pub fn mark_dropped(&mut self) {
         self.status = ArrowStatus::Dropped;
     }
+    /// The beat that this was generated at
     pub fn beat_number(&self) -> u32 {
         self.beat_number
     }
-    pub fn beat_fraction(&self) -> f32 {
+    fn beat_fraction(&self) -> f32 {
         self.beat_number() as f32
     }
     pub fn arrival_beat(&self) -> f32 {
