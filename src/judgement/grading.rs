@@ -125,28 +125,26 @@ impl JudgementSettings {
         let arrival_time = arrow.arrival_beat();
         let diff = (arrival_time - hit_time).abs();
 
-        log::debug!("grading arrow {arrow:?} (arrival time = {arrival_time:.2}) vs lane_hit {lane_hit:?}");
 
-        if diff < self.perfect_cutoff {
-            log::debug!("meets perfect cutoff, {:.2} < {:.2}", diff, self.perfect_cutoff);
-            Grade::Success(SuccessGrade::Perfect)
-        } else if diff < self.good_cutoff {
-            log::debug!("meets good cutofff, {:.2} < {:.2}", diff, self.good_cutoff);
-            Grade::Success(SuccessGrade::Good)
-        } else if diff < self.fair_cutoff {
-            log::debug!("meets fair cutoff, {:.2} < {:.2}", diff, self.fair_cutoff);
-            Grade::Success(SuccessGrade::Fair)
-        } else {
-            log::debug!("failed to hit note");
-            if hit_time < arrival_time {
-                // hit before it arrived
-                Grade::Fail(FailingGrade::Early)
+        let grade = 
+            if diff < self.perfect_cutoff {
+                Grade::Success(SuccessGrade::Perfect)
+            } else if diff < self.good_cutoff {
+                Grade::Success(SuccessGrade::Good)
+            } else if diff < self.fair_cutoff {
+                Grade::Success(SuccessGrade::Fair)
             } else {
-                Grade::Fail(FailingGrade::Late)
-            }
+                if hit_time < arrival_time {
+                    // hit before it arrived
+                    Grade::Fail(FailingGrade::Early)
+                } else {
+                    Grade::Fail(FailingGrade::Late)
+                }
+            };
 
-        }
+        log::debug!("grading {arrow:?} vs lane_hit {lane_hit:?} --> received {grade:?} due to a diff of {diff:.4}");
 
+        grade
     } 
 }
 

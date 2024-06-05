@@ -4,20 +4,17 @@ use crate::lane::Lane;
 
 #[derive(Component, Debug, Clone)]
 pub struct Arrow {
-    pub (in crate::song) lane: Lane,
-    pub (in crate::song) status: ArrowStatus,
-    /// Which beat number this was created for
-    pub (in crate::song) beat_number: u32,
-    /// Which beat this is supposed to arrive at
-    pub arrival_beat: f32,
+    lane: Lane,
+    status: ArrowStatus,
+    /// Which beat this is supposed to arrive at (i.e. when you hit it)
+    beat: f32,
 }
 impl Arrow {
-    pub fn new(lane: Lane, beat_number: u32, arrival_beat: f32) -> Arrow {
+    pub fn new(lane: Lane, arrival_beat: f32) -> Arrow {
         Arrow {
             lane,
             status: ArrowStatus::Pending,
-            beat_number,
-            arrival_beat,
+            beat: arrival_beat,
         }
     }
     pub fn height() -> f32 {
@@ -35,15 +32,9 @@ impl Arrow {
     pub fn mark_dropped(&mut self) {
         self.status = ArrowStatus::Dropped;
     }
-    /// The beat that this was generated at
-    pub fn beat_number(&self) -> u32 {
-        self.beat_number
-    }
-    fn beat_fraction(&self) -> f32 {
-        self.beat_number() as f32
-    }
+    /// The beat that when this arrow passes the target line
     pub fn arrival_beat(&self) -> f32 {
-        self.arrival_beat
+        self.beat
     }
 }
 

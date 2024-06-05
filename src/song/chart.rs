@@ -56,13 +56,6 @@ impl Chart {
 
         Ok(chart)
     }
-    pub fn get(&self, beat: u32) -> &[Note] {
-        const EMPTY: &'static [Note] = &[];
-        match self.beats.get(beat as usize) {
-            Some(notes) => notes.as_slice(),
-            None => EMPTY
-        }
-    }
     pub fn chart_name(&self) -> &str {
         self.chart_name.as_str()
     }
@@ -80,8 +73,7 @@ impl Chart {
     /// last beat that we see passing through target line
     pub fn last_beat(&self) -> f32 {
         let beats = self.beats.len() as f32;
-        let wait_period = self.song_end_beats.unwrap_or(0.0);
-        beats + wait_period
+        beats + self.lead_time_beats()
     }
 
     /// Iterate over all beats in the chart

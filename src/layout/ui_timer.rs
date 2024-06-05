@@ -53,7 +53,7 @@ pub fn update_time_text(
         .get_single()
         .map(|spawner| {
             let beats = spawner.curr_beat();
-            format!("Beats: {beats:.2}")
+            format!("Beat: {beats:.2}")
         })
         .unwrap_or(
             format!("<no song playing>")

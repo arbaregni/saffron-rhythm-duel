@@ -50,22 +50,27 @@ fn handle_pause_actions<T: Marker>(
     }
 }
 
+const SCROLL_SPEED: f32 = 1.0;
+
 fn handle_scroll_actions<T: Marker>(
     mut spawner_q: Query<&mut ArrowSpawner<T>>,
     settings: Res<UserSettings>,
     keys: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
 ) {
     let keymap = &settings.keybindings.recording_keymap;
     
+    let dy = SCROLL_SPEED * time.delta().as_secs_f32();
+
     spawner_q
         .iter_mut()
         .for_each(|mut spawner| {
             
-            if keys.just_pressed(keymap.forward) {
-                spawner.move_forward();
+            if keys.pressed(keymap.forward) {
+                spawner.change_scroll_pos(dy);
             }
-            else if keys.just_pressed(keymap.backward) {
-                spawner.move_backward();
+            else if keys.pressed(keymap.backward) {
+                spawner.change_scroll_pos(-dy);
             }
 
 

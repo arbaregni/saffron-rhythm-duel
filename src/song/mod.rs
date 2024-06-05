@@ -5,12 +5,10 @@ pub use chart::{
 mod arrow;
 pub use arrow::{
     Arrow,
-    ArrowStatus
 };
 mod spawner;
 pub use spawner::{
     ArrowSpawner,
-    ArrowBuf,
 };
 
 //
@@ -142,10 +140,8 @@ fn process_load_chart_events<T: Marker>(
 
         let audio_bundle = _get_audio_bundle::<T>(spawner.chart(), assets.as_ref());
         
-        let arrow_buf = ArrowBuf::new();
-
         commands
-            .spawn((spawner, arrow_buf, audio_bundle, T::marker()));
+            .spawn((spawner, audio_bundle, T::marker()));
 
         state.set(SongState::SettingUp);
 
@@ -186,7 +182,7 @@ fn setup_arrows<T: Marker>(
         .as_ref()
         .arrows_to_spawn()
         .for_each(|arrow| {
-            let x = panel.lane_bounds(arrow.lane).center().x;
+            let x = panel.lane_bounds(arrow.lane()).center().x;
             let y = panel.bounds().top();
             let z = Layer::Arrows.z();
             let pos = Vec3::new(x, y, z);
@@ -196,13 +192,13 @@ fn setup_arrows<T: Marker>(
                 ..default()
             };
 
-            let width = panel.lane_bounds(arrow.lane).width();
+            let width = panel.lane_bounds(arrow.lane()).width();
             let height = Arrow::height();
 
             let rect = Mesh2dHandle(
                 meshes.add(Rectangle::new(width, height))
             );
-            let color = arrow.lane.colors().base;
+            let color = arrow.lane().colors().base;
             let material = materials.add(color);
 
             let bundle = MaterialMesh2dBundle {
@@ -221,7 +217,7 @@ fn setup_arrows<T: Marker>(
             // helpful debugging
             if cli.show_beat_numbers {
 
-                let text_content = format!("{}", arrow.beat_number());
+                let text_content = format!("{:.2}", arrow.arrival_beat());
 
                 let font = asset_server.load(crate::BASE_FONT_NAME);
                 let font_size = 20.0;
@@ -290,21 +286,16 @@ fn position_arrows<T: Marker>(
     for (mut transform, arrow) in arrows.iter_mut() {
 
         // calculate the fraction of the way through the lead space we are
-        //
-        // original:
-        //       (spawner.beat_fraction() - arrow.beat_fraction()) / spawner.chart().lead_time_beats();
-        //       ((spawner.curr_beat + LT) - (arrow.arrival_beat() -  LT)) / LT
-        //       (2 * LT + spawner.curr_beat - arrow.arrival_beat) / LT
-        //       2 + (spawner.curr_beat - arrival_beat) / LT
-        let t = 2.0 + (spawner.curr_beat() - arrow.arrival_beat()) / spawner.chart().lead_time_beats();
-
         let lead_time = spawner.chart().lead_time_beats();
-        let spawn_beat = arrow.arrival_beat() - lead_time;
+        let finish = arrow.arrival_beat();
+        let start = arrow.arrival_beat() - lead_time;
 
+        // calculate the progress towards arriving at the finish line
         let curr = spawner.curr_beat();
-        let t =  (curr - spawn_beat) / lead_time;
+        // map [start, finish] to [0, 1]
+        //     [0, finish - start]
+        let t = (curr - start) / (finish - start);
 
-        //
         // Set the y, where when t = 0% we are at the top and when t = 100% we are at the bottom
         transform.translation.y = world().bottom() * t + world().top() * (1.0 - t);
         //                      = (world().bottom() - world().top()) * t + world().top()
@@ -362,7 +353,7 @@ impl Plugin for ArrowsPlugin {
     }
 }
 impl ArrowsPlugin {
-    fn build_for_team<'s, T: Marker>(&'s self, app: &mut App, team: T) -> &'s Self {
+    fn build_for_team<'s, T: Marker>(&'s self, app: &mut App, _team: T) -> &'s Self {
         let not_playing = in_state(SongState::NotPlaying::<T>);
         let playing = in_state(SongState::Playing::<T>);
 

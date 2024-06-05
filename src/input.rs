@@ -102,7 +102,7 @@ fn listen_for_input(
         .filter(|(_lane, keycode)| keys.just_pressed(*keycode))
         .map(|(lane, _keycode)| LaneHit {
             lane,
-            beat: spawner.beat_fraction(),
+            beat: spawner.curr_beat(),
             time_of_hit: now,
             _team: PlayerMarker{}
         })
