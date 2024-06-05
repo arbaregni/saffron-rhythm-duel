@@ -103,10 +103,10 @@ fn _get_audio_bundle<T: Marker>(
     assets: &AssetServer,
 ) -> AudioBundle {
 
-    if T::is_local() {
+    if T::is_remote() {
+        log::info!("skipping loading audio asset for remote player");
         return AudioBundle::default();
     }
-
 
     match chart.sound_file() {
         Some(filename) => {
@@ -117,7 +117,10 @@ fn _get_audio_bundle<T: Marker>(
                 ..default()
             }
         }
-        None => AudioBundle::default()
+        None => {
+            log::warn!("no audio bundle configured");
+            AudioBundle::default()
+        }
     }
 }
 

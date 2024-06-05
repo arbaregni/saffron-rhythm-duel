@@ -41,10 +41,10 @@ pub trait Marker : Component
     fn as_team(&self) -> Team {
         Self::team()
     }
-    fn is_local() -> bool {
-        match <Self as Marker>::team() {
-            Team::Player => true,
-            Team::Enemy => false,
+    fn is_remote() -> bool {
+        match Self::team() {
+            Team::Enemy => true,
+            Team::Player => false,
         }
     }
 }
