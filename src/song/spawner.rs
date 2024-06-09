@@ -15,7 +15,7 @@ use crate::song::{
     }
 };
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
 #[derive(Debug, Clone)]
 pub struct ArrowSpawner<T: Marker> {
     /// How we will spawn the arrows

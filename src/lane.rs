@@ -6,6 +6,7 @@ use serde::{
 use bevy::prelude::*;
 
 #[derive(Debug,Copy,Clone,PartialEq,Eq,Serialize,Deserialize)]
+#[derive(Reflect)]
 #[repr(u8)]
 pub enum Lane {
     L1 = 0,
@@ -45,6 +46,15 @@ impl Lane {
                 heavy: Color::rgb_u8(4, 41, 78),
                 greyed: Color::rgb_u8(48, 82, 117),
             },
+        }
+    }
+    pub fn as_str(self) -> &'static str {
+        use Lane::*;
+        match self {
+            L1 => "L1",
+            L2 => "L2",
+            R1 => "R1",
+            R2 => "R2",
         }
     }
 }

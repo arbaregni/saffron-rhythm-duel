@@ -12,6 +12,7 @@ use serde::{
 
 use crate::lane::Lane;
 
+#[derive(Reflect)]
 #[derive(Serialize, Deserialize)]
 #[derive(Debug, Clone)]
 struct ChartData {
@@ -39,11 +40,13 @@ struct ChartData {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Reflect)]
 pub struct ChartName {
     name: String
 }
 
 #[derive(Debug,Clone)]
+#[derive(Reflect)]
 pub struct Chart  {
     /// The data stored in the .json file
     data: ChartData,
@@ -54,6 +57,7 @@ pub struct Chart  {
 
 #[derive(Serialize, Deserialize)]
 #[derive(Debug, Clone)]
+#[derive(Reflect)]
 pub struct Note {
     /// Which lane does this note come down on?
     lane: Lane 

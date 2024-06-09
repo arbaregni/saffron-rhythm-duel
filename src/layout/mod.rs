@@ -3,20 +3,14 @@
 use bevy::prelude::*;
 
 mod bbox;
-pub use bbox::{
-    BBox
-};
+pub use bbox::BBox;
 
 mod layers;
-pub use layers::{
-    Layer
-};
+pub use layers::Layer;
 
 mod ui_timer;
 mod song_panel;
-pub use song_panel::{
-    SongPanel,
-};
+pub use song_panel::SongPanel;
 
 use crate::team_markers::{
     PlayerMarker,
@@ -41,12 +35,14 @@ fn setup_layout(
     // create the player song panel
     let player_panel = SongPanel::new(player_bounds);
     commands.spawn((
+        Name::new("song-panel-player"),
         PlayerMarker{},
         player_panel
     ));
 
     let enemy_panel = SongPanel::new(enemy_bounds);
     commands.spawn((
+        Name::new("song-panel-enemy"),
         EnemyMarker{},
         enemy_panel
     ));

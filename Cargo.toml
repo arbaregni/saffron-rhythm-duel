@@ -9,6 +9,8 @@ edition = "2021"
 anyhow = { version = "1.0.81", features = ["backtrace"] }
 # dynamic linking for faster build
 bevy = { version = "0.13.1", features = ["dynamic_linking", "shader_format_glsl"] }
+bevy-inspector-egui = "0.24.0"
+bevy_reflect = "0.13.2"
 chrono = { version = "0.4.38", features = ["now"] }
 clap = { version = "4.5.4", features = ["derive"] }
 directories = "5.0.1"

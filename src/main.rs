@@ -14,6 +14,7 @@ mod selector_menu;
 
 use std::path::PathBuf;
 use std::net::IpAddr;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use anyhow::Result;
 use bevy::prelude::*;
@@ -59,6 +60,10 @@ struct CliArgs {
     /// Enable showing the beat numbers on the notes
     show_beat_numbers: bool,
 
+    #[arg(short, long)]
+    /// Enable showing the debug inspector windows
+    debug_inspector: bool,
+
     #[arg(long)]
     /// Force the program to reset the settings to defaults on load.
     reset_to_default_settings: bool,
@@ -91,7 +96,7 @@ enum ConnectionMode {
     },
     /// Record a song locally
     Record {
-
+        // TODO
     }
 }
 
@@ -116,6 +121,7 @@ fn make_window_plugin(settings: &user_settings::UserSettings) -> bevy::window::W
     }
 }
 
+
 fn main() -> Result<()> {
     let cli = CliArgs::parse();
 
@@ -124,6 +130,7 @@ fn main() -> Result<()> {
     let settings = user_settings::load_settings(&cli)?;
 
     log::info!("Initializing app...");
+
 
     let window_plugin = make_window_plugin(&settings);
 
@@ -145,6 +152,10 @@ fn main() -> Result<()> {
             record::RecordingPlugin,
         ))
 
+        .config_if(cli.debug_inspector, |app| {
+            app.add_plugins(WorldInspectorPlugin::new())
+        })
+
         // Load resources
         .insert_resource(cli)
         .insert_resource(settings)
@@ -157,6 +168,24 @@ fn main() -> Result<()> {
         .add_systems(Update, close_on_window_close_requested)
         .run();
     Ok(())
+}
+
+trait AppExt {
+    fn app_mut(&mut self) -> &mut App;
+
+    fn config_if<F>(&mut self, cond: bool, mut config: F) -> &mut App
+    where F: FnMut(&mut App) -> &mut App {
+        if cond {
+            config(self.app_mut());
+        }
+        self.app_mut()
+    }
+
+}
+impl AppExt for App {
+    fn app_mut(&mut self) -> &mut App {
+        self
+    }
 }
 
 fn setup(mut commands: Commands, _asset_server: Res<AssetServer>) {

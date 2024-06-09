@@ -6,11 +6,10 @@ pub use chart::{
 mod arrow;
 pub use arrow::{
     Arrow,
+    ArrowStatus,
 };
 mod spawner;
-pub use spawner::{
-    ArrowSpawner,
-};
+pub use spawner::ArrowSpawner;
 
 //
 // Our imports
@@ -145,8 +144,16 @@ fn _spawn_spawner<T: Marker>(
 
     let audio_bundle = _get_audio_bundle::<T>(spawner.chart(), assets);
 
-    commands
-        .spawn((spawner, audio_bundle, T::marker()));
+    let entity_name = Name::from(
+        format!("spawner-{}", T::as_str())
+    );
+
+    commands.spawn((
+        entity_name,
+        spawner, 
+        audio_bundle,
+        T::marker()
+    ));
 
     state.set(SongState::SettingUp);
 
@@ -243,16 +250,22 @@ fn setup_arrows<T: Marker>(
             let color = arrow.lane().colors().base;
             let material = materials.add(color);
 
-            let bundle = MaterialMesh2dBundle {
+            let mesh_bundle = MaterialMesh2dBundle {
                 mesh: rect,
                 material,
                 transform,
                 ..default()
             };
+
+            let entity_name = Name::new(
+                format!("arrow-{}-{}-{}", T::as_str(), arrow.arrival_beat(), arrow.lane().as_str())
+            );
+
             log::debug!("spawning arrow: {arrow:#?}");
             let mut entity = commands.spawn((
+                entity_name,
                 arrow.clone(),
-                bundle,
+                mesh_bundle,
                 T::marker(),
             ));
 
@@ -340,7 +353,6 @@ fn position_arrows<T: Marker>(
 
         // Set the y, where when t = 0% we are at the top and when t = 100% we are at the bottom
         transform.translation.y = world().bottom() * t + world().top() * (1.0 - t);
-        //                      = (world().bottom() - world().top()) * t + world().top()
     }
 }
 
@@ -389,7 +401,13 @@ fn cleanup_spawner<T: Marker>(
 pub struct ArrowsPlugin;
 impl Plugin for ArrowsPlugin {
     fn build(&self, app: &mut App) {
-        self.build_for_team(app, PlayerMarker{})
+        app
+            .register_type::<ArrowStatus>()
+            .register_type::<Arrow>()
+            .register_type::<Chart>();
+
+        self
+            .build_for_team(app, PlayerMarker{})
             .build_for_team(app, EnemyMarker{})
         ;
     }
@@ -403,6 +421,8 @@ impl ArrowsPlugin {
         let on_stop_playing = OnEnter(SongState::NotPlaying::<T>);
 
         app
+            .register_type::<ArrowSpawner<T>>()
+
             .add_event::<LoadChartRequest<T>>()
             .add_event::<LoadChartResponse<T>>()
             .add_event::<SongFinishedEvent<T>>()

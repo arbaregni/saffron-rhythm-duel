@@ -80,7 +80,6 @@ fn sync_chart_progress(
     let Some(spawner) = spawner_q.get_single().ok() else {
         return;
     };
-    log::info!("syncing chart progress...");
     comms.try_send_message(GameMessage::LoadChart {
         chart_name: spawner.chart().chart_name().clone(),
         scroll_pos:  spawner.scroll_pos()

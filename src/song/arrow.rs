@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::lane::Lane;
 
 #[derive(Component, Debug, Clone)]
+#[derive(Reflect)]
 pub struct Arrow {
     lane: Lane,
     status: ArrowStatus,
@@ -40,6 +41,7 @@ impl Arrow {
 
 
 #[derive(Debug, Copy, Clone)]
+#[derive(Reflect)]
 pub enum ArrowStatus {
     /// Has been generated, but not clicked
     Pending,

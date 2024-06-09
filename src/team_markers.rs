@@ -10,15 +10,18 @@ use serde::{
 
 #[derive(Component)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq,Hash,Deserialize,Serialize)]
+#[derive(Reflect)]
 /// Put this component on entities owned by the local user
 pub struct PlayerMarker;
 
 #[derive(Component)]
 #[derive(Debug,Copy,Clone,PartialEq,Eq,Hash,Deserialize,Serialize)]
+#[derive(Reflect)]
 /// Put this component on entities owned by the remote user
 pub struct EnemyMarker;
 
 #[derive(Debug,Copy,Clone,PartialEq,Eq,Hash,Deserialize,Serialize)]
+#[derive(Reflect)]
 /// Runtime available information on the object's side.
 pub enum Team {
     /// Local user.
@@ -31,6 +34,8 @@ pub trait Marker : Component
     + Clone
     + Send
     + Sync
+    + bevy_reflect::FromReflect
+    + bevy_reflect::TypePath
     + fmt::Debug
     + cmp::Eq
     + hash::Hash
@@ -45,6 +50,12 @@ pub trait Marker : Component
         match Self::team() {
             Team::Enemy => true,
             Team::Player => false,
+        }
+    }
+    fn as_str() -> &'static str {
+        match Self::team() {
+            Team::Enemy => "enemy",
+            Team::Player => "player",
         }
     }
 }
