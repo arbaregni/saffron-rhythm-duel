@@ -2,16 +2,17 @@ use bevy::prelude::*;
 
 use anyhow::{
     Result,
-    Context
+    Context,
 };
 
-use crate::team_markers::{
-    Marker,
-};
+use crate::team_markers::Marker;
 
-use super::{
-    chart::Chart,
-    arrow::Arrow
+use crate::song::{
+    arrow::Arrow,
+    chart::{
+        Chart,
+        ChartName
+    }
 };
 
 #[derive(Component)]
@@ -38,10 +39,10 @@ pub struct ArrowSpawner<T: Marker> {
 }
 impl <T: Marker> ArrowSpawner<T> {
     /// Creates an arrow spawner
-    pub fn create(chart_name: &str, time: &Time) -> Result<Self> {
+    pub fn create(chart_name: &ChartName, time: &Time) -> Result<Self> {
         use std::time::Duration;
 
-        let chart = Chart::try_load_from_file(chart_name)
+        let chart = Chart::try_load_from_name(chart_name.clone())
             .with_context(|| format!("loading chart with name {chart_name}"))?;
 
         let duration = Duration::from_secs_f32(chart.beat_duration_secs());
@@ -90,6 +91,15 @@ impl <T: Marker> ArrowSpawner<T> {
     }
     pub fn chart(&self) -> &Chart {
         &self.chart
+    }
+
+    // it's fine, used by networking
+    pub fn scroll_pos(&self) -> f32 {
+        self.scroll_pos + self.spawn_timer.fraction()
+    }
+    pub fn set_scroll_pos(&mut self, scroll_pos: f32) {
+        log::info!("setting scroll pos");
+        self.scroll_pos = scroll_pos;
     }
 
     /// Returns the current beat that is passing through the target line

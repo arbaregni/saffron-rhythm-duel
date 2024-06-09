@@ -1,5 +1,6 @@
 {
-    "chart_name": "2:3:5 poly rhythm",
+    "chart_name": "poly-rhythm-2-3-5",
+    "description": "2:3:5 poly rhythm",
     "sound_file": "windless-slopes.ogg",
     "beat_duration_secs": 0.33,
     "lead_time_beats": 3.03,

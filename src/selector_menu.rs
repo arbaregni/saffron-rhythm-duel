@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
 
 use crate::team_markers::{
@@ -5,6 +7,7 @@ use crate::team_markers::{
     Marker
 };
 use crate::song::{
+    Chart,
     LoadChartRequest,
     LoadChartResponse,
     SongFinishedEvent
@@ -13,7 +16,7 @@ use crate::song::{
 #[derive(Debug)]
 #[derive(Component)]
 pub struct ChartSelector {
-    selectable: Vec<String>,
+    selectable: Vec<Arc<Chart>>,
     curr_selected: Option<usize>,
 }
 impl ChartSelector {
@@ -21,49 +24,21 @@ impl ChartSelector {
         let mut selectable = Vec::with_capacity(16);
 
         // initialize the selectable list
-        find_selectable_charts(&mut selectable);
+        Chart::load_charts_in(&mut selectable)
+            .inspect_err(|e| log::error!("failed to load charts: {e}"));
+        
         Self {
             selectable,
             curr_selected: None
         }
     }
-    fn selected_chart_name(&self) -> Option<&str> {
+    fn selected_chart(&self) -> Option<&Chart> {
         self.curr_selected
             .and_then(|index| {
                 self.selectable.get(index)
             })
-            .map(|s| s.as_str())
+            .map(|chart| chart.as_ref())
     }
-}
-
-fn find_selectable_charts(buf: &mut Vec<String>) {
-    use std::fs;
-    let path = "assets/charts/";
-    let Ok(dir) = fs::read_dir(path)
-        .inspect_err(|e| log::error!("unable to read chart directory: {e}"))
-        else { return; };
-
-    for entry_or_err in dir {
-        let Ok(entry) = entry_or_err
-            .inspect_err(|e| log::error!("unable to read entry in chart directory: {e}"))
-            else { continue; };
-
-        let filepath = entry.path();
-
-        let extension = filepath.extension().and_then(|s| s.to_str());
-        if extension != Some("json") {
-            continue;
-        }
-
-        // gets the filename, without the .json
-        let Some(filename) = filepath.file_stem().and_then(|s| s.to_str()) else {
-            log::error!("filepath without filestem: {filepath:?}");
-            continue;
-        };
-
-        buf.push(filename.to_string());
-    }
-
 }
 
 const NORMAL_FILL_COLOR: Color = Color::rgb(0.3, 0.3, 0.3);
@@ -138,12 +113,12 @@ fn setup_chart_selector<T: Marker>(
     let buttons: Vec<_> = chart_selector.selectable
         .iter()
         .enumerate()
-        .map(|(index, chart_name)| {
+        .map(|(index, chart)| {
             let select = SelectChartButton {
                 index,
             };
             let text = TextBundle::from_section(
-                chart_name,
+                format!("{}", chart.chart_name()),
                 text_style.clone()
             );
             commands
@@ -230,10 +205,10 @@ fn interact_with_buttons(
         });
 
     if do_load_chart {
-        if let Some(chart_name) = chart_selector.selected_chart_name() {
+        if let Some(chart) = chart_selector.selected_chart() {
             log::info!("emitting load chart event");
             load_chart_ev.send(LoadChartRequest::create(
-                chart_name.to_string(),
+                chart.chart_name().clone()
             ));
             state.set(ChartSelectorState::LoadingChart);
         }

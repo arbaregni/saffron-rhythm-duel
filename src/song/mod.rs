@@ -1,6 +1,7 @@
 mod chart;
 pub use chart::{
-    Chart
+    Chart,
+    ChartName
 };
 mod arrow;
 pub use arrow::{
@@ -47,25 +48,32 @@ const BEAT_NUMBER_TEXT_COLOR: Color = Color::rgb(0.1, 0.1, 0.1);
 #[derive(Debug)]
 /// Request to load a new chart
 pub struct LoadChartRequest<T: Marker> {
-    chart_name: String,
+    chart_name: ChartName,
+    scroll_pos: f32,
     // Set to zero to start at the beginning
-    #[allow(dead_code)]
-    beat_count: u32,
-    #[allow(dead_code)]
-    team: T,
+    _team: T,
 }
 impl <T: Marker> LoadChartRequest<T> {
-    pub fn create(chart_name: String) -> LoadChartRequest<T> {
+    pub fn create(chart_name: ChartName) -> LoadChartRequest<T> {
         Self {
             chart_name,
-            beat_count: 0,
-            team: T::marker(),
+            // to begin the song
+            scroll_pos: 0.0,
+            _team: T::marker(),
         }
     }
-}
-impl <T: Marker> LoadChartRequest<T> {
-    pub fn chart_name(&self) -> &str {
-        self.chart_name.as_str()
+    pub fn create_with_scroll_pos(chart_name: ChartName, scroll_pos: f32) -> LoadChartRequest<T> {
+        Self {
+            chart_name,
+            scroll_pos,
+            _team: T::marker()
+        }
+    }
+    pub fn chart_name(&self) -> &ChartName {
+        &self.chart_name
+    }
+    pub fn scroll_pos(&self) -> f32 {
+        self.scroll_pos
     }
 }
 
@@ -124,39 +132,70 @@ fn _get_audio_bundle<T: Marker>(
     }
 }
 
+fn _spawn_spawner<T: Marker>(
+    chart_name: &ChartName,
+    time: &Time,
+    assets: &AssetServer,
+    state: &mut NextState<SongState<T>>,
+    commands: &mut Commands,
+) -> Result<()> {
+
+    let spawner = ArrowSpawner::<T>::create(chart_name, time)
+            .with_context(|| format!("while attempting to load chart name '{chart_name}'"))?;
+
+    let audio_bundle = _get_audio_bundle::<T>(spawner.chart(), assets);
+
+    commands
+        .spawn((spawner, audio_bundle, T::marker()));
+
+    state.set(SongState::SettingUp);
+
+    Ok(())
+}
+
 fn process_load_chart_events<T: Marker>(
     mut load_chart_req: EventReader<LoadChartRequest<T>>,
     mut load_chart_resp: EventWriter<LoadChartResponse<T>>,
     mut commands: Commands,
     assets: Res<AssetServer>,
     time: Res<Time>,
-    // spawner_q: Query<&ArrowSpawner<T>>,
+    mut spawner_q: Query<&mut ArrowSpawner<T>>,
     mut state: ResMut<NextState<SongState<T>>>,
 ) {
-    if load_chart_req.is_empty() {
-        return;
-    }
-    
-    let mut load_chart_impl = |chart_name| -> Result<()> {
-        let spawner = ArrowSpawner::<T>::create(chart_name, time.as_ref())
-                .with_context(|| format!("while attempting to load chart name '{chart_name}'"))?;
-
-        let audio_bundle = _get_audio_bundle::<T>(spawner.chart(), assets.as_ref());
-        
-        commands
-            .spawn((spawner, audio_bundle, T::marker()));
-
-        state.set(SongState::SettingUp);
-
-        Ok(())
-    };
 
     load_chart_req
         .read()
         .for_each(|ev| {
             log::info!("consuming load chart event");
-            let chart_name = ev.chart_name.as_str();
-            let resp = load_chart_impl(chart_name);
+            let resp = match spawner_q.get_single_mut().ok() {
+
+                Some(mut spawner) if spawner.chart().chart_name() == ev.chart_name() => {
+                    // all we have to do is set the progress correctly
+                    spawner.set_scroll_pos(ev.scroll_pos);
+                    Ok(())
+                }
+
+                Some(spawner) => {
+                    // we must despawn and recreate the entire config
+                    log::error!("TODO: tear down entire song");
+                    Ok(())
+                }
+
+                None => {
+                    // must create the new spawner
+                    _spawn_spawner(
+                        ev.chart_name(),
+                        &time,
+                        &assets,
+                        &mut state,
+                        &mut commands
+                    )
+                }
+
+            }
+            .inspect_err(|e| {
+                log::error!("unable to load chart: {e}");
+            });
             load_chart_resp.send(LoadChartResponse {
                 response: resp,
                 _team: T::marker()

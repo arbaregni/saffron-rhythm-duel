@@ -49,10 +49,11 @@ pub fn translate_messages_from_remote(
                 now
             ));
         }
-        LoadChart { chart_name } => {
+        LoadChart { chart_name, scroll_pos } => {
             log::debug!("emitting remote chart load");
-            remote_load_chart.send(LoadChartRequest::create(
+            remote_load_chart.send(LoadChartRequest::create_with_scroll_pos(
                 chart_name,
+                scroll_pos
             ));
         }
         CorrectHit { lane, beat, grade } => {
@@ -82,7 +83,8 @@ pub fn translate_events_from_local(
     for ev in load_chart_ev.read() {
         log::debug!("consuming local chart load, passing to remote");
         comms.try_send_message(GameMessage::LoadChart {
-            chart_name: ev.chart_name().to_string()
+            chart_name: ev.chart_name().clone(),
+            scroll_pos:  ev.scroll_pos()
         });
     }
     for ev in correct_hit_ev.read() {

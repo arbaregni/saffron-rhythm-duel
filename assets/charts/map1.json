@@ -1,5 +1,6 @@
 {
-    "chart_name": "test song",
+    "chart_name": "map1",
+    "description": "test song",
     "beat_duration_secs": 0.3,
     "lead_time_beats": 4,
     "wait_for_music_end": false,

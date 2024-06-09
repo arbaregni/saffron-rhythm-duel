@@ -1,5 +1,6 @@
 {
-    "chart_name": "repeating notes",
+    "chart_name": "map2.json",
+    "description": "repeating notes",
     "beat_duration_secs": 0.3,
     "lead_time_beats": 4,
     "wait_for_music_end": false,
