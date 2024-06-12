@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 mod chart;
 pub use chart::{
     Chart,
-    ChartName
+    ChartName,
+    ChartAssets
 };
 mod arrow;
 pub use arrow::{
@@ -9,15 +12,15 @@ pub use arrow::{
     ArrowStatus,
 };
 mod spawner;
-pub use spawner::ArrowSpawner;
+pub use spawner::{
+    ArrowSpawner,
+    SyncSpawnerEvent
+};
 
 //
 // Our imports
 //
-use anyhow::{
-    Result,
-    Context
-};
+
 use bevy::{
     prelude::*,
     sprite::{
@@ -36,6 +39,7 @@ use crate::layout::{
     Layer,
     SongPanel,
 };
+
 fn world() -> BBox {
     crate::world()
 }
@@ -43,49 +47,25 @@ fn world() -> BBox {
 /// For the text shown with debug flag --show-beat-numbers
 const BEAT_NUMBER_TEXT_COLOR: Color = Color::rgb(0.1, 0.1, 0.1);
 
-#[derive(Event)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Event)]
 /// Request to load a new chart
 pub struct LoadChartRequest<T: Marker> {
     chart_name: ChartName,
-    scroll_pos: f32,
-    // Set to zero to start at the beginning
     _team: T,
 }
 impl <T: Marker> LoadChartRequest<T> {
-    pub fn create(chart_name: ChartName) -> LoadChartRequest<T> {
+    pub fn from(chart_name: ChartName) -> LoadChartRequest<T> {
         Self {
             chart_name,
-            // to begin the song
-            scroll_pos: 0.0,
             _team: T::marker(),
-        }
-    }
-    pub fn create_with_scroll_pos(chart_name: ChartName, scroll_pos: f32) -> LoadChartRequest<T> {
-        Self {
-            chart_name,
-            scroll_pos,
-            _team: T::marker()
         }
     }
     pub fn chart_name(&self) -> &ChartName {
         &self.chart_name
     }
-    pub fn scroll_pos(&self) -> f32 {
-        self.scroll_pos
-    }
 }
 
-#[derive(Event,Debug)]
-/// Response to the attempt to load a new chart
-pub struct LoadChartResponse<T: Marker> {
-    /// Either OK and the chart was loaded, or Err with a message to the user on why.
-    pub response: Result<()>,
-    _team: T
-}
-
-#[derive(Event)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Event)]
 pub struct SongFinishedEvent<T: Marker> {
     _team: T,
 }
@@ -118,29 +98,23 @@ fn _get_audio_bundle<T: Marker>(
     match chart.sound_file() {
         Some(filename) => {
             let filepath = format!("sounds/{filename}");
-            log::info!("loading audio asset from path {filepath}");
             AudioBundle {
                 source: assets.load(filepath),
                 ..default()
             }
         }
         None => {
-            log::warn!("no audio bundle configured");
+            // no audio bundle configured, just use the defaults
             AudioBundle::default()
         }
     }
 }
 
 fn _spawn_spawner<T: Marker>(
-    chart_name: &ChartName,
-    time: &Time,
+    spawner: ArrowSpawner<T>,
     assets: &AssetServer,
-    state: &mut NextState<SongState<T>>,
     commands: &mut Commands,
-) -> Result<()> {
-
-    let spawner = ArrowSpawner::<T>::create(chart_name, time)
-            .with_context(|| format!("while attempting to load chart name '{chart_name}'"))?;
+) -> Entity {
 
     let audio_bundle = _get_audio_bundle::<T>(spawner.chart(), assets);
 
@@ -152,62 +126,88 @@ fn _spawn_spawner<T: Marker>(
         entity_name,
         spawner, 
         audio_bundle,
-        T::marker()
-    ));
-
-    state.set(SongState::SettingUp);
-
-    Ok(())
+        T::marker(),
+    )).id()
 }
 
 fn process_load_chart_events<T: Marker>(
     mut load_chart_req: EventReader<LoadChartRequest<T>>,
-    mut load_chart_resp: EventWriter<LoadChartResponse<T>>,
     mut commands: Commands,
     assets: Res<AssetServer>,
+    time: Res<Time>,
+    chart_assets: Res<ChartAssets>,
+    mut state: ResMut<NextState<SongState<T>>>,
+) {
+    // read one event per frame
+    load_chart_req
+        .read()
+        .next()
+        .inspect(|ev| {
+            log::info!("consuming load chart event");
+
+            let chart = chart_assets.get(ev.chart_name());
+            let chart = Arc::clone(chart);
+            let spawner = ArrowSpawner::<T>::create(chart, &time);
+
+            _spawn_spawner::<T>(
+                spawner,
+                &assets,
+                &mut commands
+            );
+            state.set(SongState::SettingUp);
+        });
+}
+
+fn process_sync_spawner_events<T: Marker>(
+    mut sync_spawner_ev: EventReader<SyncSpawnerEvent<T>>,
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+    chart_assets: Res<ChartAssets>,
     time: Res<Time>,
     mut spawner_q: Query<&mut ArrowSpawner<T>>,
     mut state: ResMut<NextState<SongState<T>>>,
 ) {
+    use SyncSpawnerEvent::*;
 
-    load_chart_req
+    sync_spawner_ev
         .read()
-        .for_each(|ev| {
-            log::info!("consuming load chart event");
-            let resp = match spawner_q.get_single_mut().ok() {
+        .for_each(|ev| match ev {
+            Spawning { chart_name, scroll_pos, is_paused, _team } => {
+                let scroll_pos = *scroll_pos;
+                let is_paused = *is_paused;
 
-                Some(mut spawner) if spawner.chart().chart_name() == ev.chart_name() => {
-                    // all we have to do is set the progress correctly
-                    spawner.set_scroll_pos(ev.scroll_pos);
-                    Ok(())
-                }
+                let chart = chart_assets.get(&chart_name);
+                let chart = Arc::clone(chart);
 
-                Some(spawner) => {
-                    // we must despawn and recreate the entire config
-                    log::error!("TODO: tear down entire song");
-                    Ok(())
-                }
+                match spawner_q.get_single_mut().ok() {
 
-                None => {
-                    // must create the new spawner
-                    _spawn_spawner(
-                        ev.chart_name(),
-                        &time,
-                        &assets,
-                        &mut state,
-                        &mut commands
-                    )
-                }
+                    Some(mut spawner) => {
+                        spawner.set_chart(chart);
+                        spawner.set_scroll_pos(scroll_pos);
+                        spawner.set_is_paused(is_paused);
+                    }
+                    None => {
+                        // must create spawner first
+                        let mut spawner = ArrowSpawner::<T>::create(chart, &time);
+                        spawner.set_scroll_pos(scroll_pos);
+                        spawner.set_is_paused(is_paused);
+
+                        _spawn_spawner(
+                            spawner,
+                            &assets,
+                            &mut commands
+                        );
+
+                        state.set(SongState::SettingUp);
+                    }
+                };
 
             }
-            .inspect_err(|e| {
-                log::error!("unable to load chart: {e}");
-            });
-            load_chart_resp.send(LoadChartResponse {
-                response: resp,
-                _team: T::marker()
-            });
-        });
+            NotSpawning {} => {
+                // this will destruct everything
+                state.set(SongState::NotPlaying);
+            }
+        })
 }
 
     
@@ -401,10 +401,18 @@ fn cleanup_spawner<T: Marker>(
 pub struct ArrowsPlugin;
 impl Plugin for ArrowsPlugin {
     fn build(&self, app: &mut App) {
+        let chart_assets = ChartAssets::create()
+            .expect("chart assets should load");
+
         app
             .register_type::<ArrowStatus>()
             .register_type::<Arrow>()
-            .register_type::<Chart>();
+            .register_type::<Chart>()
+            .insert_resource(chart_assets)
+
+            // needed for the enemy spawner to keep in sync with remote
+            .add_systems(Update, process_sync_spawner_events::<EnemyMarker>)
+        ;
 
         self
             .build_for_team(app, PlayerMarker{})
@@ -424,7 +432,7 @@ impl ArrowsPlugin {
             .register_type::<ArrowSpawner<T>>()
 
             .add_event::<LoadChartRequest<T>>()
-            .add_event::<LoadChartResponse<T>>()
+            .add_event::<SyncSpawnerEvent<T>>()
             .add_event::<SongFinishedEvent<T>>()
             .insert_state(SongState::NotPlaying::<T>)
 
@@ -445,6 +453,7 @@ impl ArrowsPlugin {
             )
             // when we finish, despawn it
             .add_systems(on_stop_playing, cleanup_spawner::<T>)
+
         ;
         self
     }

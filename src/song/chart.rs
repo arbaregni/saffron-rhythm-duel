@@ -1,8 +1,9 @@
 use std::sync::Arc;
+use std::collections::HashMap;
 
 use anyhow::{
     Result,
-    Context
+    Context,
 };
 use bevy::prelude::*;
 use serde::{
@@ -66,46 +67,21 @@ pub struct Note {
 
 
 impl Chart {
-    pub fn load_charts_in(buf: &mut Vec<Arc<Chart>>) -> Result<()> {
-        use std::fs;
-        let path = "assets/charts/";
-        let dir = fs::read_dir(path)
-            .with_context(|| format!("while reading chart directory at {path}"))?;
-
-        for entry_or_err in dir {
-            let Ok(entry) = entry_or_err
-                .inspect_err(|e| log::error!("unable to read entry in chart directory: {e}"))
-                else { continue; };
-
-            let filepath = entry.path();
-
-            let extension = filepath.extension().and_then(|s| s.to_str());
-            if extension != Some("json") {
-                continue;
-            }
-
-            // gets the filename, without the .json
-            let Some(filename) = filepath.file_stem().and_then(|s| s.to_str()) else {
-                log::error!("filepath without filestem: {filepath:?}");
-                continue;
-            };
-
-            // this is fine because we have validated that the asset exists
-            let name = ChartName { name: filename.to_string() };
-
-            let Ok(chart) = Chart::try_load_from_name(name) 
-                .inspect_err(|e| log::error!("while loading chart: {e:?}"))
-                else { continue; };
-
-            let chart = Arc::new(chart);
-
-
-            buf.push(chart);
+    pub fn empty() -> Chart {
+        Chart {
+            data: ChartData {
+                chart_name: "".to_string(),
+                description: None,
+                beat_duration_secs: 0.0,
+                lead_time_beats: 0.0,
+                song_end_beats: None,
+                beats: Vec::new(),
+                sound_file: None,
+            },
+            name: ChartName { name: "".to_owned() } 
         }
-
-        Ok(())
     }
-    pub fn try_load_from_name(name: ChartName) -> Result<Chart> {
+    pub fn try_load_from_name(name: &ChartName) -> Result<Chart> {
         let path = format!("assets/charts/{}.json", name.name);
 
         // read the chart from the file
@@ -119,7 +95,7 @@ impl Chart {
 
         let chart = Chart {
             data: chart_data,
-            name
+            name: name.clone()
         };
 
         Ok(chart)
@@ -127,6 +103,7 @@ impl Chart {
     pub fn chart_name(&self) -> &ChartName {
         &self.name
     }
+    #[allow(dead_code)]
     pub fn friendly_name(&self) -> &str {
         self.data.chart_name.as_str()
     }
@@ -170,3 +147,73 @@ impl Note {
 }
 
 
+const CHART_ASSET_PATH: &'static str = "assets/charts/";
+
+#[derive(Debug, Clone, Resource)]
+/// Contains the references for all loaded charts
+pub struct ChartAssets {
+    mapping: HashMap<ChartName, Arc<Chart>>,
+    empty_chart: Arc<Chart>
+}
+impl ChartAssets {
+    pub fn create() -> Result<ChartAssets> {
+        use std::fs;
+
+        let path = CHART_ASSET_PATH;
+        let dir = fs::read_dir(path)
+            .with_context(|| format!("while reading chart directory at {path}"))?;
+
+        let (lo, hi) = dir.size_hint();
+        let cap = hi.unwrap_or(lo);
+        let mut mapping = HashMap::with_capacity(cap);
+
+        for entry_or_err in dir {
+            let Ok(entry) = entry_or_err
+                .inspect_err(|e| log::error!("unable to read entry in chart directory: {e}"))
+                else { continue; };
+
+            let filepath = entry.path();
+
+            let extension = filepath.extension().and_then(|s| s.to_str());
+            if extension != Some("json") {
+                continue;
+            }
+
+            // gets the filename, without the .json
+            let Some(filename) = filepath.file_stem().and_then(|s| s.to_str()) else {
+                log::error!("filepath without filestem: {filepath:?}");
+                continue;
+            };
+
+            // this is fine because we have validated that the asset exists
+            let name = ChartName { name: filename.to_string() };
+
+            let Ok(chart) = Chart::try_load_from_name(&name) 
+                .inspect_err(|e| log::error!("while loading chart: {e:?}"))
+                else { continue; };
+
+            let chart = Arc::new(chart);
+
+
+            mapping.insert(name, chart);
+        }
+
+        Ok(ChartAssets {
+            mapping,
+            empty_chart: Arc::new(Chart::empty())
+        })
+
+    }
+    pub fn get(&self, name: &ChartName) -> &Arc<Chart> {
+        self.mapping
+            .get(name)
+            .unwrap_or_else(|| {
+                log::info!("chart named {name} was not loaded in ChartAssets");
+                &self.empty_chart
+            })
+    }
+
+    pub fn chart_names(&self) -> impl Iterator<Item = &ChartName> {
+        self.mapping.keys()
+    }
+}

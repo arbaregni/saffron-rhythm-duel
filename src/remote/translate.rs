@@ -1,29 +1,22 @@
 use bevy::prelude::*;
 
-use crate::input::{
-    LaneHit
-};
+use crate::input::LaneHit;
+
 use crate::team_markers::{
     PlayerMarker,
     EnemyMarker
 };
-use crate::song::{
-    LoadChartRequest
-};
+use crate::song::{LoadChartRequest, SyncSpawnerEvent};
 
 use super::{
-    communicate::{
-        Comms
-    },
+    communicate::Comms,
     GameMessage
 };
 use crate::judgement::{
     CorrectHitEvent,
     RawCorrectHitEvent
 };
-use crate::input::{
-    RemoteLaneHit
-};
+use crate::input::RemoteLaneHit;
 
 /// GameMessages from remote become local game events
 pub fn translate_messages_from_remote(
@@ -32,6 +25,7 @@ pub fn translate_messages_from_remote(
     mut remote_lane_hit: EventWriter<RemoteLaneHit>,
     mut remote_load_chart: EventWriter<LoadChartRequest<EnemyMarker>>,
     mut remote_correct_hit: EventWriter<RawCorrectHitEvent<EnemyMarker>>,
+    mut remote_sync_state: EventWriter<SyncSpawnerEvent<EnemyMarker>>,
 ) {
     let Some(msg) = listener.try_recv_message() else {
         return; // nothing to do
@@ -49,11 +43,10 @@ pub fn translate_messages_from_remote(
                 now
             ));
         }
-        LoadChart { chart_name, scroll_pos } => {
+        LoadChart { chart_name } => {
             log::debug!("emitting remote chart load");
-            remote_load_chart.send(LoadChartRequest::create_with_scroll_pos(
-                chart_name,
-                scroll_pos
+            remote_load_chart.send(LoadChartRequest::from(
+                chart_name
             ));
         }
         CorrectHit { lane, beat, grade } => {
@@ -62,6 +55,10 @@ pub fn translate_messages_from_remote(
                 lane_hit: RemoteLaneHit::from(lane, beat, now),
                 grade,
             });
+        }
+        SyncSpawnerState(ev) => {
+            log::debug!("emitting remote correct hit");
+            remote_sync_state.send(ev);
         }
     }
 }
@@ -84,7 +81,6 @@ pub fn translate_events_from_local(
         log::debug!("consuming local chart load, passing to remote");
         comms.try_send_message(GameMessage::LoadChart {
             chart_name: ev.chart_name().clone(),
-            scroll_pos:  ev.scroll_pos()
         });
     }
     for ev in correct_hit_ev.read() {

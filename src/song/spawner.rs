@@ -1,8 +1,9 @@
-use bevy::prelude::*;
+use std::sync::Arc;
 
-use anyhow::{
-    Result,
-    Context,
+use bevy::prelude::*;
+use serde::{
+    Deserialize,
+    Serialize
 };
 
 use crate::team_markers::Marker;
@@ -15,11 +16,22 @@ use crate::song::{
     }
 };
 
+#[derive(Debug, Clone, Serialize, Deserialize, Event)]
+pub enum SyncSpawnerEvent<T: Marker> {
+    NotSpawning,
+    Spawning {
+        chart_name: ChartName,
+        scroll_pos: f32,
+        is_paused: bool,
+        _team: T,
+    }
+}
+
 #[derive(Component, Reflect)]
 #[derive(Debug, Clone)]
 pub struct ArrowSpawner<T: Marker> {
     /// How we will spawn the arrows
-    chart: Chart,
+    chart: Arc<Chart>,
 
     /// The timer marking off the beat
     spawn_timer: Timer,
@@ -39,25 +51,22 @@ pub struct ArrowSpawner<T: Marker> {
 }
 impl <T: Marker> ArrowSpawner<T> {
     /// Creates an arrow spawner
-    pub fn create(chart_name: &ChartName, time: &Time) -> Result<Self> {
+    pub fn create(chart: Arc<Chart>, time: &Time) -> Self {
         use std::time::Duration;
-
-        let chart = Chart::try_load_from_name(chart_name.clone())
-            .with_context(|| format!("loading chart with name {chart_name}"))?;
 
         let duration = Duration::from_secs_f32(chart.beat_duration_secs());
         let spawn_timer = Timer::new(duration, TimerMode::Repeating);
 
         let now = time.elapsed().as_secs_f32();
 
-        Ok(Self {
+        Self {
             chart,
             spawn_timer,
             song_start: now,
             scroll_pos: 0.0,
             is_paused: false,
             _team: T::marker(),
-        })
+        }
     }
 
     pub fn change_scroll_pos(&mut self, dy: f32) {
@@ -101,6 +110,17 @@ impl <T: Marker> ArrowSpawner<T> {
         log::info!("setting scroll pos");
         self.scroll_pos = scroll_pos;
     }
+    pub fn set_is_paused(&mut self, is_paused: bool) {
+        self.is_paused = is_paused;
+    }
+    pub fn is_paused(&self) -> bool {
+        self.is_paused
+    }
+    pub fn set_chart(&mut self, chart: Arc<Chart>) {
+        log::warn!("warning: changing the chart. this may cause arrows to become desynced");
+        self.chart = chart;
+    }
+
 
     /// Returns the current beat that is passing through the target line
     pub fn curr_beat(&self) -> f32 {
@@ -154,10 +174,7 @@ impl <T: Marker> ArrowSpawner<T> {
              self.curr_beat(), self.chart().last_beat()
         );
         true
-    }
-
-    
-    
-
+    } 
 }
+
 

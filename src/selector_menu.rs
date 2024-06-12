@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use bevy::prelude::*;
 
 use crate::team_markers::{
@@ -7,37 +5,30 @@ use crate::team_markers::{
     Marker
 };
 use crate::song::{
-    Chart,
+    ChartAssets,
+    ChartName,
     LoadChartRequest,
-    LoadChartResponse,
-    SongFinishedEvent
+    SongFinishedEvent,
 };
 
 #[derive(Debug)]
 #[derive(Component)]
 pub struct ChartSelector {
-    selectable: Vec<Arc<Chart>>,
+    selectable: Vec<ChartName>,
     curr_selected: Option<usize>,
 }
 impl ChartSelector {
-    fn create() -> Self {
-        let mut selectable = Vec::with_capacity(16);
-
-        // initialize the selectable list
-        Chart::load_charts_in(&mut selectable)
-            .inspect_err(|e| log::error!("failed to load charts: {e}"));
-        
+    fn create(selectable: Vec<ChartName>) -> Self {
         Self {
             selectable,
             curr_selected: None
         }
     }
-    fn selected_chart(&self) -> Option<&Chart> {
+    fn selected_chart_name(&self) -> Option<&ChartName> {
         self.curr_selected
             .and_then(|index| {
                 self.selectable.get(index)
             })
-            .map(|chart| chart.as_ref())
     }
 }
 
@@ -54,8 +45,6 @@ const TEXT_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 enum ChartSelectorState {
     /// User is currently picking a chart
     SelectingChart,
-    /// We are attempting to honor the request
-    LoadingChart,
     /// We are not on
     Disabled,
 }
@@ -81,10 +70,15 @@ fn enable_chart_selector_on_song_end<T: Marker>(
 fn setup_chart_selector<T: Marker>(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    charts: Res<ChartAssets>,
 ) {
     let font = asset_server.load(crate::BASE_FONT_NAME);
 
-    let chart_selector = ChartSelector::create();
+    let selectable = charts.chart_names()
+        .cloned()
+        .collect();
+
+    let chart_selector = ChartSelector::create(selectable);
 
     let text_style = TextStyle {
         font_size: 36.0,
@@ -113,12 +107,12 @@ fn setup_chart_selector<T: Marker>(
     let buttons: Vec<_> = chart_selector.selectable
         .iter()
         .enumerate()
-        .map(|(index, chart)| {
+        .map(|(index, chart_name)| {
             let select = SelectChartButton {
                 index,
             };
             let text = TextBundle::from_section(
-                format!("{}", chart.chart_name()),
+                format!("{}", chart_name),
                 text_style.clone()
             );
             commands
@@ -205,46 +199,34 @@ fn interact_with_buttons(
         });
 
     if do_load_chart {
-        if let Some(chart) = chart_selector.selected_chart() {
+        if let Some(chart_name) = chart_selector.selected_chart_name() {
             log::info!("emitting load chart event");
-            load_chart_ev.send(LoadChartRequest::create(
-                chart.chart_name().clone()
+            load_chart_ev.send(LoadChartRequest::from(
+                chart_name.clone()
             ));
-            state.set(ChartSelectorState::LoadingChart);
+            state.set(ChartSelectorState::Disabled);
         }
     }
-}
-fn process_load_chart_resp(
-    mut load_chart_resp: EventReader<LoadChartResponse<PlayerMarker>>,
-    mut state: ResMut<NextState<ChartSelectorState>>,
-) {
-    use ChartSelectorState::*;
-    load_chart_resp
-        .read()
-        .for_each(|resp| {
-            match &resp.response {
-                Ok(()) => {
-                    state.set(Disabled)
-                }
-                Err(e) => {
-                    log::error!("unable to load: {e:?}");
-                    state.set(SelectingChart)
-                }
-            }
-        })
 }
 
 pub struct ChartSelectorPlugin;
 impl Plugin for ChartSelectorPlugin {
     fn build(&self, app: &mut App) {
         use ChartSelectorState::*;
+
+        let selecting = in_state(SelectingChart);
+
         app
             .insert_state(SelectingChart)
-            .add_systems(Update, enable_chart_selector_on_song_end::<PlayerMarker>)
+
             .add_systems(OnEnter(SelectingChart), setup_chart_selector::<PlayerMarker>)
-            .add_systems(Update, interact_with_buttons.run_if(in_state(SelectingChart)))
-            .add_systems(Update, process_load_chart_resp.run_if(in_state(LoadingChart)))
+            .add_systems(Update, (
+                interact_with_buttons
+            ).run_if(selecting))
             .add_systems(OnExit(SelectingChart), despawn_chart_selector::<PlayerMarker>)
+            .add_systems(Update, 
+                enable_chart_selector_on_song_end::<PlayerMarker>
+            )
         ;
     }
 }

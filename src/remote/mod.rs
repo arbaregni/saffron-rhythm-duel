@@ -11,20 +11,16 @@ use crate::{
     user_settings::UserSettings
 };
 use crate::team_markers::{
-    PlayerMarker
+    PlayerMarker,
+    EnemyMarker
 };
 
-use crate::lane::{
-    Lane
-};
+use crate::lane::Lane;
 
-use crate::judgement::{
-    grading::{
-        SuccessGrade,
-    }
-};
+use crate::judgement::grading::SuccessGrade;
 use crate::song::{
-    ChartName
+    ChartName,
+    SyncSpawnerEvent
 };
 
 pub mod communicate;
@@ -45,13 +41,13 @@ pub enum GameMessage {
     },
     LoadChart {
         chart_name: ChartName,
-        scroll_pos: f32,
     },
     CorrectHit {
         lane: Lane,
         grade: SuccessGrade,
         beat: f32,
     },
+    SyncSpawnerState(SyncSpawnerEvent<EnemyMarker>)
 }
 
 fn setup_comms(
@@ -77,13 +73,16 @@ fn sync_chart_progress(
     spawner_q: Query<&crate::song::ArrowSpawner<PlayerMarker>>
 ) {
     // TODO: also send over the lack of arrow spawning
-    let Some(spawner) = spawner_q.get_single().ok() else {
-        return;
+    let event = match spawner_q.get_single().ok() {
+        Some(spawner) => SyncSpawnerEvent::Spawning {
+            chart_name: spawner.chart().chart_name().clone(),
+            scroll_pos: spawner.scroll_pos(),
+            is_paused: spawner.is_paused(),
+            _team: EnemyMarker,
+        },
+        None => SyncSpawnerEvent::NotSpawning 
     };
-    comms.try_send_message(GameMessage::LoadChart {
-        chart_name: spawner.chart().chart_name().clone(),
-        scroll_pos:  spawner.scroll_pos()
-    });
+    comms.try_send_message(GameMessage::SyncSpawnerState(event));
 }
 
 pub struct RemoteUserPlugin;
