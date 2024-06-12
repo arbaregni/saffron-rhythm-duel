@@ -12,20 +12,10 @@ use crate::song::{
     arrow::Arrow,
     chart::{
         Chart,
-        ChartName
+        ChartName,
+        ChartAssets,
     }
 };
-
-#[derive(Debug, Clone, Serialize, Deserialize, Event)]
-pub enum SyncSpawnerEvent<T: Marker> {
-    NotSpawning,
-    Spawning {
-        chart_name: ChartName,
-        scroll_pos: f32,
-        is_paused: bool,
-        _team: T,
-    }
-}
 
 #[derive(Component, Reflect)]
 #[derive(Debug, Clone)]
@@ -106,21 +96,6 @@ impl <T: Marker> ArrowSpawner<T> {
     pub fn scroll_pos(&self) -> f32 {
         self.scroll_pos + self.spawn_timer.fraction()
     }
-    pub fn set_scroll_pos(&mut self, scroll_pos: f32) {
-        log::info!("setting scroll pos");
-        self.scroll_pos = scroll_pos;
-    }
-    pub fn set_is_paused(&mut self, is_paused: bool) {
-        self.is_paused = is_paused;
-    }
-    pub fn is_paused(&self) -> bool {
-        self.is_paused
-    }
-    pub fn set_chart(&mut self, chart: Arc<Chart>) {
-        log::warn!("warning: changing the chart. this may cause arrows to become desynced");
-        self.chart = chart;
-    }
-
 
     /// Returns the current beat that is passing through the target line
     pub fn curr_beat(&self) -> f32 {
@@ -175,6 +150,74 @@ impl <T: Marker> ArrowSpawner<T> {
         );
         true
     } 
+
+    pub fn get_sync_state(&self) -> SpawnerSyncableState {
+        SpawnerSyncableState {
+            chart_name: Some(self.chart().chart_name().clone()),
+            scroll_pos: Some(self.scroll_pos()),
+            is_paused: Some(self.is_paused),
+        }
+    }
+    pub fn from_syncable_state(ev: SpawnerSyncableState, chart_assets: &ChartAssets, latency_tolerance: f32, time: &Time) -> ArrowSpawner<T> {
+        let empty = chart_assets.empty();
+        let mut spawner = ArrowSpawner::create(empty, time);
+        spawner.load_from_syncable_state(ev, chart_assets, latency_tolerance);
+        spawner
+    }
+    pub fn load_from_syncable_state(&mut self, ev: SpawnerSyncableState, chart_assets: &ChartAssets, latency_tolerance: f32) {
+        let SpawnerSyncableState { chart_name, scroll_pos, is_paused, } = ev;
+
+        chart_name
+            // Only change it on a new chart
+            .filter(|chart_name| self.chart().chart_name() != chart_name)
+            .map(|chart_name| {
+                let chart = chart_assets.get(&chart_name);
+                Arc::clone(chart)
+            })
+            .then(|chart| {
+                log::warn!("changing charts, this could cause arrows to desync");
+                self.chart = chart;
+            });
+
+        scroll_pos
+            // Only change if the jump is big enough
+            .filter(|scroll_pos| (scroll_pos - self.scroll_pos).abs() >= latency_tolerance)
+            .then(|scroll_pos| {
+                self.scroll_pos = scroll_pos; 
+            });
+
+        is_paused
+            .then(|is_paused| {
+                self.is_paused = is_paused;
+            });
+    }
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpawnerSyncableState {
+    chart_name: Option<ChartName>,
+    scroll_pos: Option<f32>,
+    is_paused: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Event)]
+pub enum SyncSpawnerEvent<T: Marker> {
+    NotSpawning,
+    Spawning(SpawnerSyncableState, T)
+}
+
+trait OptionExt<T> : Sized {
+    fn to_option(self) -> Option<T>;
+    fn then<F: FnMut(T)>(self, mut f: F) {
+        match self.to_option() {
+            Some(x) => f(x),
+            None => {},
+        };
+    }
+}
+impl <T> OptionExt<T> for Option<T> {
+    fn to_option(self) -> Option<T> { self }
 }
 
 

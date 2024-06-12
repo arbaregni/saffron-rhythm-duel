@@ -68,18 +68,16 @@ fn setup_comms(
 
 const CHART_SYNC_DURATION: Duration = Duration::from_secs(1);
 
-fn sync_chart_progress(
+fn sync_chart_progress_local_to_remote(
     mut comms: ResMut<Comms>,
-    spawner_q: Query<&crate::song::ArrowSpawner<PlayerMarker>>
+    spawner_q: Query<&crate::song::ArrowSpawner<PlayerMarker>>,
 ) {
     // TODO: also send over the lack of arrow spawning
     let event = match spawner_q.get_single().ok() {
-        Some(spawner) => SyncSpawnerEvent::Spawning {
-            chart_name: spawner.chart().chart_name().clone(),
-            scroll_pos: spawner.scroll_pos(),
-            is_paused: spawner.is_paused(),
-            _team: EnemyMarker,
-        },
+        Some(spawner) => SyncSpawnerEvent::Spawning(
+            spawner.get_sync_state(),
+            EnemyMarker{},
+        ),
         None => SyncSpawnerEvent::NotSpawning 
     };
     comms.try_send_message(GameMessage::SyncSpawnerState(event));
@@ -93,7 +91,7 @@ impl Plugin for RemoteUserPlugin {
             .add_systems(Update, (
                     translate::translate_messages_from_remote,
                     translate::translate_events_from_local,
-                    sync_chart_progress.run_if(
+                    sync_chart_progress_local_to_remote.run_if(
                         bevy::time::common_conditions::on_timer(CHART_SYNC_DURATION)
                     )
             ))

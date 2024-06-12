@@ -216,4 +216,7 @@ impl ChartAssets {
     pub fn chart_names(&self) -> impl Iterator<Item = &ChartName> {
         self.mapping.keys()
     }
+    pub fn empty(&self) -> Arc<Chart> {
+        Arc::clone(&self.empty_chart)
+    }
 }

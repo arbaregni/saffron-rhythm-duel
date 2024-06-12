@@ -29,6 +29,8 @@ use bevy::{
     }
 };
 
+use crate::user_settings::UserSettings;
+
 use crate::team_markers::{
     PlayerMarker,
     EnemyMarker,
@@ -165,47 +167,46 @@ fn process_sync_spawner_events<T: Marker>(
     chart_assets: Res<ChartAssets>,
     time: Res<Time>,
     mut spawner_q: Query<&mut ArrowSpawner<T>>,
-    mut state: ResMut<NextState<SongState<T>>>,
+    mut song_state: ResMut<NextState<SongState<T>>>,
+    settings: Res<UserSettings>,
 ) {
     use SyncSpawnerEvent::*;
 
     sync_spawner_ev
         .read()
         .for_each(|ev| match ev {
-            Spawning { chart_name, scroll_pos, is_paused, _team } => {
-                let scroll_pos = *scroll_pos;
-                let is_paused = *is_paused;
-
-                let chart = chart_assets.get(&chart_name);
-                let chart = Arc::clone(chart);
-
+            Spawning(chart_state, _team) => {
                 match spawner_q.get_single_mut().ok() {
-
+                    // if we found a spawner, then we load the state
                     Some(mut spawner) => {
-                        spawner.set_chart(chart);
-                        spawner.set_scroll_pos(scroll_pos);
-                        spawner.set_is_paused(is_paused);
+                        spawner.load_from_syncable_state(
+                            chart_state.clone(),
+                            &chart_assets,
+                            settings.latency_tolerance
+                        );
                     }
                     None => {
                         // must create spawner first
-                        let mut spawner = ArrowSpawner::<T>::create(chart, &time);
-                        spawner.set_scroll_pos(scroll_pos);
-                        spawner.set_is_paused(is_paused);
-
+                        let spawner = ArrowSpawner::<T>::from_syncable_state(
+                            chart_state.clone(), 
+                            &chart_assets,
+                            settings.latency_tolerance,
+                            &time
+                        );
                         _spawn_spawner(
                             spawner,
                             &assets,
                             &mut commands
                         );
 
-                        state.set(SongState::SettingUp);
+                        song_state.set(SongState::SettingUp);
                     }
                 };
 
             }
             NotSpawning {} => {
                 // this will destruct everything
-                state.set(SongState::NotPlaying);
+                song_state.set(SongState::NotPlaying);
             }
         })
 }

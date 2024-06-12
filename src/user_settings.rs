@@ -30,6 +30,13 @@ pub struct UserSettings {
     pub host_addr: IpAddr,
     #[serde(default = "default_window_mode")]
     pub window_mode: WindowMode,
+    #[serde(default = "default_latency_tolerance")]
+    pub latency_tolerance: f32
+}
+
+/// Default latency in milli seconds
+fn default_latency_tolerance() -> f32 {
+    1000.0
 }
 
 fn default_port() -> u16 {
@@ -60,6 +67,7 @@ impl std::convert::Into<bevy::window::WindowMode> for WindowMode {
 impl std::default::Default for UserSettings {
     fn default() -> Self {
         Self {
+            latency_tolerance: default_latency_tolerance(),
             window_mode: default_window_mode(),
             host_addr: default_host_addr(),
             port: default_port(),
