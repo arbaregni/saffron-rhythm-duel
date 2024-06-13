@@ -89,7 +89,7 @@ fn create_target_sparkle_on_correct_hit<T: Marker>(
 
         let position = Vec3::new(
             panel.lane_bounds(lane).center().x,
-            panel.target_line_y(),
+            event.arrow_pos.y,
             Layer::AboveTargets.z()
         );
 

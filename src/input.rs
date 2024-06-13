@@ -19,13 +19,13 @@ use crate::team_markers::{
 #[derive(Debug,Clone,Deserialize,Serialize)]
 pub struct RawLaneHit<T: Marker> {
     /// Lane that was hit
-    lane: Lane,
+    pub lane: Lane,
     /// When the key was pressed
-    time_of_hit: f32,
+    pub time_of_hit: f32,
     /// The beat when the key was pressed
-    beat: f32,
+    pub beat: f32,
     /// The team (local or remote) that made the hit
-    _team: T,
+    pub _team: T,
 }
 impl <T: Marker> RawLaneHit<T> {
     pub fn from(lane: Lane, beat: f32, time_of_hit: f32) -> RawLaneHit<T> {

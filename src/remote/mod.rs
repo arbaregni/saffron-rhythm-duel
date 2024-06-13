@@ -17,7 +17,8 @@ use crate::team_markers::{
 
 use crate::lane::Lane;
 
-use crate::judgement::grading::SuccessGrade;
+use crate::judgement::grading::RemoteCorrectHitEvent;
+
 use crate::song::{
     ChartName,
     SyncSpawnerEvent
@@ -42,11 +43,7 @@ pub enum GameMessage {
     LoadChart {
         chart_name: ChartName,
     },
-    CorrectHit {
-        lane: Lane,
-        grade: SuccessGrade,
-        beat: f32,
-    },
+    CorrectHit(RemoteCorrectHitEvent),
     SyncSpawnerState(SyncSpawnerEvent<EnemyMarker>)
 }
 

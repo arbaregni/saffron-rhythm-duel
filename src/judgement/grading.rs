@@ -33,6 +33,8 @@ const DEFAULT_FAIR_CUTOFF: f32    = 0.40;
 pub struct RawCorrectHitEvent<T: Marker> {
     /// The lane hit
     pub lane_hit: RawLaneHit<T>,
+    /// The arrow position when the hit happened
+    pub arrow_pos: Vec3,
     /// The grade the judgment system gave
     pub grade: SuccessGrade,
 }

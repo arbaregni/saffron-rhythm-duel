@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::input::LaneHit;
+use crate::input::{LaneHit, RawLaneHit};
 
 use crate::team_markers::{
     PlayerMarker,
@@ -49,12 +49,9 @@ pub fn translate_messages_from_remote(
                 chart_name
             ));
         }
-        CorrectHit { lane, beat, grade } => {
+        CorrectHit(ev) => {
             log::debug!("emitting remote correct hit");
-            remote_correct_hit.send(RawCorrectHitEvent {
-                lane_hit: RemoteLaneHit::from(lane, beat, now),
-                grade,
-            });
+            remote_correct_hit.send(ev);
         }
         SyncSpawnerState(ev) => {
             log::debug!("emitting remote correct hit");
@@ -85,11 +82,16 @@ pub fn translate_events_from_local(
     }
     for ev in correct_hit_ev.read() {
         log::debug!("consuming local correct hit, passing to remote");
-        comms.try_send_message(GameMessage::CorrectHit {
-            lane: ev.lane_hit.lane(),
-            beat: ev.lane_hit.beat(),
-            grade: ev.grade.clone(),
-        });
+        comms.try_send_message(GameMessage::CorrectHit(RawCorrectHitEvent {
+            lane_hit: RawLaneHit {
+                lane: ev.lane_hit.lane(),
+                time_of_hit: ev.lane_hit.time_of_hit,
+                beat: ev.lane_hit.beat(),
+                _team: EnemyMarker{},
+            },
+            arrow_pos: ev.arrow_pos,
+            grade: ev.grade,
+        }));
     }
 }
 
